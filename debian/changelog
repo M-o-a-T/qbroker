@@ -1,0 +1,7 @@
+dabroker (0.2.0.0) unstable; urgency=medium
+
+  * Minimal copy from DaaBroker
+  * Downgrade to Python 3.4
+
+ -- Matthias Urlichs <smurf@noris.de>  Tue, 28 Jun 2016 17:04:03 +0200
+

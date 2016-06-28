@@ -1,0 +1,6 @@
+/files
+/*.log
+/*.debhelper
+/*.substvars
+/python-qbroker
+/python3-qbroker
