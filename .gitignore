@@ -1,0 +1,5 @@
+/.cache
+*.swp
+__pycache__
+/test.log
+/test.cfg
