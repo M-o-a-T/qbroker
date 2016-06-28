@@ -1,0 +1,9 @@
+#!/bin/sh
+
+if test $(git ls-files --modified | fgrep -zv _boilerplate.py | wc -l) != 0 ; then
+	echo "You have modifications here" >&2
+	exit 1
+fi
+
+perl -i utils/replace_boilerplate.pl $( git ls-files -z|xargs -0r fgrep -xl "##BP" )
+

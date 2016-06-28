@@ -15,3 +15,6 @@ test.cfg:
 	@cp test.cfg.sample $@
 	@echo "Warning: copied test.cfg.sample to $@" >&2
 
+update:
+	@sh utils/update_boilerplate
+
