@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, print_function, division, unicode_literals
 ##
@@ -20,16 +20,18 @@ import logging
 import sys
 logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 
-u=Unit("test.client.list_servers", load_cfg("test.cfg"))
+u=Unit("test.client.list_servers", load_cfg("test.cfg")['config'])
+
 
 def cb(data):
 	print(data)
-async def example():
-	await u.start()
+@asyncio.coroutine
+def example():
+	yield from u.start()
 	try:
-		await u.alert("dabroker.ping",callback=cb,call_conv=CC_DATA, timeout=2)
+		yield from u.alert("qbroker.ping",callback=cb,call_conv=CC_DATA, timeout=2)
 	finally:
-		await u.stop()
+		yield from u.stop()
 
 def main():
 	loop = asyncio.get_event_loop()

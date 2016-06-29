@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, print_function, division, unicode_literals
 ##
@@ -14,8 +14,8 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 ##BP
 
 import asyncio
-from dabroker.unit import Unit
-from dabroker.util.tests import load_cfg
+from qbroker.unit import Unit
+from qbroker.util.tests import load_cfg
 import logging
 import sys
 from pprint import pprint
@@ -23,18 +23,22 @@ logging.basicConfig(stream=sys.stderr, level=logging.WARNING)
 
 u=Unit("test.ping", load_cfg("test.cfg")['config'])
 
-async def cb(r):
+@asyncio.coroutine
+def cb(r):
 	pprint(r.data)
+	if False:
+		yield from None
 
-async def example():
-	await u.start()
-	await asyncio.sleep(0.2) # allow monitor to attach
+@asyncio.coroutine
+def example():
+	yield from u.start()
+	yield from asyncio.sleep(0.2) # allow monitor to attach
 	try:
-		await asyncio.wait_for(u.alert("dabroker.ping",callback=cb), timeout=3)
+		yield from asyncio.wait_for(u.alert("dabroker.ping",callback=cb), timeout=3)
 	except asyncio.TimeoutError:
 		pass
 	finally:
-		await u.stop()
+		yield from u.stop()
 
 def main():
 	loop = asyncio.get_event_loop()

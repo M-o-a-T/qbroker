@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, print_function, division, unicode_literals
 ##
@@ -14,8 +14,8 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 ##BP
 
 import asyncio
-from dabroker.unit import Unit, CC_DATA
-from dabroker.util.tests import load_cfg
+from qbroker.unit import Unit, CC_DATA
+from qbroker.util.tests import load_cfg
 
 import logging
 import sys
@@ -24,15 +24,18 @@ logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 u=Unit("test.server", load_cfg("test.cfg")['config'])
 
 @u.register_rpc("example.hello", call_conv=CC_DATA)
+@asyncio.coroutine
 def hello(name="Joe"):
+	yield from asyncio.sleep(1)
 	return "Hello %s!" % name
 	
-async def example():
-	await u.start()
+@asyncio.coroutine
+def example():
+	yield from u.start()
 	try:
-		await asyncio.sleep(200)
+		yield from asyncio.sleep(200)
 	finally:
-		await u.stop()
+		yield from u.stop()
 
 def main():
 	loop = asyncio.get_event_loop()
