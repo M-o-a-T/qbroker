@@ -16,21 +16,9 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 
 from importlib import import_module
 from pprint import pformat
-from six import PY2,PY3, string_types,text_type
 from functools import wraps
 from collections.abc import Mapping
 
-import pytz
-UTC = pytz.UTC
-with open("/etc/localtime", 'rb') as tzfile:
-	TZ = pytz.tzfile.build_tzinfo(str('local'), tzfile)
-
-# a prettyprinter which skips these pesky u'' prefixes (PY2)
-# and which emits UTF8 instead of escaping everything under the sun
-# and which ignores OrderedDict
-from pprint import PrettyPrinter,_safe_repr
-import datetime as _dt
-from io import StringIO as _StringIO
 from base64 import b64encode
 
 def uuidstr(u=None):
@@ -38,91 +26,6 @@ def uuidstr(u=None):
 		import uuid
 		u=uuid.uuid1()
 	return b64encode(u.bytes, altchars=b'-_').decode('ascii').rstrip('=')
-
-class UTFPrinter(PrettyPrinter,object):
-	def _format(self, object, *a,**k):
-		typ = type(object)
-		if hasattr(object,"values"):
-			object = dict(object.items())
-		return super(UTFPrinter,self)._format(object, *a,**k)
-
-	def format(self, object, *a,**k):
-		typ = type(object)
-		if isinstance(object, string_types):
-			if PY2 and isinstance(typ,str):
-				object = object.decode("utf-8")
-		elif typ is _dt.datetime:
-			return "DT( %s )"%(format_dt(object),),True,False
-		else:
-			return super(UTFPrinter,self).format(object,*a,**k)
-
-		s = repr(object)
-		if '\\' not in s:
-			if s[0] in ('"',"'"):
-				return s,True,False
-			else:
-				return s[1:],True,False
-
-		# more work here
-		if "'" in s[2:-1] and '"' not in s[2:-1]:
-			closure = '"'
-			quotes = {'"': '\\"'}
-		else:
-			closure = "'"
-			quotes = {"'": "\\'"}
-		qget = quotes.get
-		sio = _StringIO()
-		write = sio.write
-		for char in object:
-			if not char.isalpha():
-				char = qget(char, text_type(repr(char)))
-				if char[0] == 'u':
-					char = char[2:-1]
-				else:
-					char = char[1:-1]
-			else:
-				char = text_type(char)
-			write(char)
-		return ("%s%s%s" % (closure, sio.getvalue(), closure)), True, False
-
-def pprint(object, stream=None, indent=1, width=80, depth=None):
-	"""Pretty-print a Python object to a stream [default is sys.stdout]."""
-	UTFPrinter(stream=stream, indent=indent, width=width, depth=depth).pprint(object)
-
-def pformat(object, indent=1, width=80, depth=None):
-	"""Format a Python object into a pretty-printed representation."""
-	return UTFPrinter(indent=indent, width=width, depth=depth).pformat(object)
-
-# Default timeout for the cache.
-def format_dt(value, format='%Y-%m-%d %H:%M:%S'):
-	try:
-		return value.astimezone(TZ).strftime(format)
-	except ValueError: ## naïve time: assume UTC
-		return value.replace(tzinfo=UTC).astimezone(TZ).strftime(format)
-
-def _p_filter(m,mids):
-	if isinstance(m,Mapping):
-		if m.get('_oi',0) not in mids:
-			del m['_oi']
-		for v in m.values():
-			_p_filter(v,mids)
-	elif isinstance(m,(tuple,list)):
-		for v in m:
-			_p_filter(v,mids)
-def _p_find(m,mids):
-	if isinstance(m,Mapping):
-		mids.add(m.get('_or',0))
-		for v in m.values():
-			_p_find(v,mids)
-	elif isinstance(m,(tuple,list)):
-		for v in m:
-			_p_find(v,mids)
-
-def format_msg(m):
-	mids = set()
-	_p_find(m,mids)
-	_p_filter(m,mids)
-	return pformat(m)
 
 def import_string(name):
 	"""Import a module, or resolve an attribute of a module."""
@@ -283,10 +186,7 @@ class _ClassMethodAttr(classmethod):
 		# Otherwise we need to build this thing ourselves.
 		# TODO: use our data directly, rather than calling up.
 		res = classmethod.__get__(self,i,t)
-		if PY3:
-			return _ClassMethodType(res.__func__,res.__self__, **self._attrs)
-		else:
-			return _ClassMethodType(res.im_func,res.im_self,res.im_class, **self._attrs)
+		return _ClassMethodType(res.__func__,res.__self__, **self._attrs)
 
 class _StaticMethodAttr(classmethod):
 	def __get__(self,i,t=None):
@@ -296,8 +196,5 @@ class _StaticMethodAttr(classmethod):
 
 		# same as classmethod (almost)
 		res = classmethod.__get__(self,i,t)
-		if PY3:
-			return _StaticMethodType(res.__func__,res.__self__, **self._attrs)
-		else:
-			return _StaticMethodType(res.im_func,res.im_self,res.im_class, **self._attrs)
+		return _StaticMethodType(res.__func__,res.__self__, **self._attrs)
 

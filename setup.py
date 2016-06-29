@@ -17,7 +17,6 @@ import xml.sax.saxutils
 from os.path import join
 import sys
 import os
-from six import text_type
 
 def get_version(fname='qbroker/__init__.py'):
     with open(fname) as f:
