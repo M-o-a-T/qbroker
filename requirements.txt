@@ -1,1 +1,1 @@
-amqp
+aioamqp
