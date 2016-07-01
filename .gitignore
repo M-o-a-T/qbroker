@@ -1,5 +1,6 @@
 /.cache
 *.swp
+*.pyc
 __pycache__
 /test.log
 /test.cfg
