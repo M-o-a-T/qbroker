@@ -45,7 +45,6 @@ def _r_setdefault(d,kv):
 class Unit(object):
 	"""The basic QBroker messenger. Singleton per app (normally)."""
 	config = None # configuration data
-	cfgtree = None
 	conn = None # AMQP receiver
 	uuid = None # my UUID
 
@@ -251,9 +250,6 @@ class Unit(object):
 
 	def _kill(self, deleting=False):
 		self._kill_conn(deleting=deleting)
-		c,self.cfgtree = self.cfgtree,None
-		if c is not None:
-			c._kill()
 
 	def _kill_conn(self, deleting=False):
 		c,self.conn = self.conn,None
