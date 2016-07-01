@@ -1,19 +1,7 @@
 config:
-  testing: true
-  etcd:
-    host: localhost
-    port: 2379
-    root: /test/etctree
   amqp:
     server:
       host: localhost
       login: test
       password: test
       virtualhost: /test
-  specific:
-    test:
-      no_port:
-        config:
-          amqp:
-            server:
-              port: 65530

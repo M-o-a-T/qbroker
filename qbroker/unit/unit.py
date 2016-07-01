@@ -12,14 +12,8 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 ## Thus, please do not remove the next line, or insert any blank lines.
 ##BP
 
-##
-## Configuration: look up, in order:
-## yaml_cfg.config
-## 
-
-import weakref
 import asyncio
-from ..util import attrdict, import_string, uuidstr
+from ..util import uuidstr, combine_dict
 from .msg import RequestMsg,PollMsg,AlertMsg
 from .rpc import CC_MSG
 from . import DEFAULT_CONFIG
@@ -31,38 +25,27 @@ logger = logging.getLogger(__name__)
 class _NOTGIVEN:
 	pass
 
-# helper for recursive dict.[set]default()
-def _r_setdefault(d,kv):
-	for k,v in kv.items():
-		try:
-			dk = d[k]
-		except KeyError:
-			d[k] = v
-		else:
-			if isinstance(d[k],Mapping):
-				_r_setdefault(dk,v)
-
 class Unit(object):
-	"""The basic QBroker messenger. Singleton per app (normally)."""
+	"""The basic QBroker messenger."""
 	config = None # configuration data
 	conn = None # AMQP receiver
 	uuid = None # my UUID
 
-	def __init__(self, app, cfg, loop=None):
+	def __init__(self, app, *, loop=None, **cfg):
 		self._loop = loop or asyncio.get_event_loop()
 		self.app = app
-		self._cfg = cfg
+
+		self.config = combine_dict(cfg, DEFAULT_CONFIG)
 
 		self.rpc_endpoints = {}
 		self.alert_endpoints = {}
 
-		self.register_alert("qbroker.ping",self._alert_ping)
-
 	@asyncio.coroutine
 	def start(self, *args):
-		self.uuid = uuidstr()
-		self.config = self._get_config(self._cfg)
 
+		self.uuid = uuidstr()
+
+		self.register_alert("qbroker.ping",self._alert_ping)
 		self.register_rpc("qbroker.ping."+self.uuid, self._reply_ping)
 
 		yield from self._create_conn()
@@ -233,15 +216,6 @@ class Unit(object):
 			rpc=list(self.rpc_endpoints.keys()),
 			alert=list(self.alert_endpoints.keys()),
 			)
-		
-	def _get_config(self, cfg):
-		"""Read config data from cfg """
-		if not isinstance(cfg,Mapping): # pragma: no cover
-			from etctree.util import from_yaml
-			cfg = from_yaml(cfg)['config']
-
-		_r_setdefault(cfg,DEFAULT_CONFIG)
-		return cfg
 		
 	## cleanup, less interesting (hopefully)
 

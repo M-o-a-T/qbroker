@@ -21,7 +21,7 @@ import sys
 from pprint import pprint
 logging.basicConfig(stream=sys.stderr, level=logging.WARNING)
 
-u=Unit("test.ping", load_cfg("test.cfg")['config'])
+u=Unit("test.ping", **load_cfg("test.cfg")['config'])
 
 @asyncio.coroutine
 def cb(r):

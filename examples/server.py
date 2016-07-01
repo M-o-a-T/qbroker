@@ -21,7 +21,7 @@ import logging
 import sys
 logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 
-u=Unit("test.server", load_cfg("test.cfg")['config'])
+u=Unit("test.server", **load_cfg("test.cfg")['config'])
 
 @u.register_rpc("example.hello", call_conv=CC_DATA)
 @asyncio.coroutine

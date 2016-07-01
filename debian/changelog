@@ -1,3 +1,9 @@
+dabroker (0.3.0.0) unstable; urgency=medium
+
+  * Cleanup configuration
+
+ -- Matthias Urlichs <smurf@noris.de>  Fri, 01 Jul 2016 12:21:43 +0200
+
 dabroker (0.2.0.0) unstable; urgency=medium
 
   * Minimal copy from DaaBroker

@@ -41,6 +41,28 @@ def import_string(name):
 		except AttributeError:
 			raise AttributeError(name)
 
+def combine_dict(*d):
+	res = {}
+	keys = {}
+	if len(d) <= 1:
+		return d
+	for kv in d:
+		for k,v in kv.items():
+			if k not in keys:
+				keys[k] = []
+			keys[k].append(v)
+	for k,v in keys.items():
+		if len(v) == 1:
+			res[k] = v[0]
+		elif not isinstance(v[0],Mapping):
+			for vv in v[1:]:
+				assert not isinstance(vv,Mapping)
+			res[k] = v[0]
+		else:
+			res[k] = combine_dict(*v)
+	return res
+
+
 class _missing: pass
 
 class attrdict(dict):

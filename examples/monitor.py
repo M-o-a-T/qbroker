@@ -24,7 +24,7 @@ import logging
 import sys
 logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 
-u=Unit("qbroker.monitor", load_cfg("test.cfg")['config'])
+u=Unit("qbroker.monitor", **load_cfg("test.cfg")['config'])
 
 channels = {'alert':'topic', 'rpc':'topic', 'reply':'direct'}
 
