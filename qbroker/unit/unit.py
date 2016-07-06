@@ -30,26 +30,52 @@ class Unit(object):
 	config = None # configuration data
 	conn = None # AMQP receiver
 	uuid = None # my UUID
+	restarting = None
 
 	def __init__(self, app, *, loop=None, **cfg):
 		self._loop = loop or asyncio.get_event_loop()
 		self.app = app
 
 		self.config = combine_dict(cfg, DEFAULT_CONFIG)
+		self.restarting = asyncio.Event(loop=loop)
 
 		self.rpc_endpoints = {}
 		self.alert_endpoints = {}
 
 	@asyncio.coroutine
-	def start(self, *args):
+	def start(self, *args, restart=False):
+		"""Connect. This may fail."""
 
-		self.uuid = uuidstr()
+		if self.uuid is None:
+			self.uuid = uuidstr()
 
 		self.register_alert("qbroker.ping",self._alert_ping)
 		self.register_rpc("qbroker.ping."+self.uuid, self._reply_ping)
 
 		yield from self._create_conn()
-		yield from self.alert('qbroker.start', uuid=self.uuid, app=self.app, args=args)
+		yield from self.alert('qbroker.restart' if restart else 'qbroker.start', uuid=self.uuid, app=self.app, args=args)
+		self.restarting.set()
+	
+	@asyncio.coroutine
+	def restart(self, t_min=10,t_inc=20,t_max=100):
+		"""Reconnect. This will not fail."""
+		while self.restarting is not None:
+			yield from self.restarting.wait()
+
+		try:
+			self._kill()
+		except Exception:
+			pass
+		
+		while True:
+			try:
+				yield from self.start(restart=True)
+			except Exception as exc:
+				logger.exception("Reconnect of %s failed", self)
+				yield from asyncio.sleep(t_min, loop=self._loop)
+				t_min = min(t_min+t_inc, t_max)
+			else:
+				return
 	
 	@asyncio.coroutine
 	def stop(self, rc=0):
