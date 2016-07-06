@@ -97,7 +97,7 @@ class Unit(object):
 
 	def register_rpc(self, *a, _async=False, _alert=False, call_conv=CC_MSG):
 		"""\
-			Register an RPC listener while not connected.
+			Register an RPC listener.
 				
 				conn.register_rpc(RPCservice(fn,name))
 				conn.register_rpc(name,fn)
@@ -106,6 +106,8 @@ class Unit(object):
 				def fn(…): pass
 				@conn_register
 				def fn(…): pass
+
+			If connected, you must use the _async version.
 			"""
 		name = None
 		@asyncio.coroutine

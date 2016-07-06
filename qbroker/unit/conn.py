@@ -62,7 +62,7 @@ class Connection(object):
 	@asyncio.coroutine
 	def _setup_one(self,name,typ,callback=None, q=None, route_key=None, exclusive=None):
 		"""\
-			Register
+			Register a channel. Internal helper.
 			"""
 		unit = self.unit()
 		cfg = unit.config['amqp']
@@ -94,6 +94,7 @@ class Connection(object):
 	def setup_channels(self):
 		"""Configure global channels"""
 		u = self.unit()
+		# See doc/qbroker.rst
 		yield from self._setup_one("alert",'topic', self._on_alert, u.uuid)
 		yield from self._setup_one("rpc",'topic')
 		yield from self._setup_one("reply",'direct', self._on_reply, u.uuid, u.uuid)
