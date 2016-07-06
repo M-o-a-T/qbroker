@@ -23,7 +23,7 @@ from unittest.mock import Mock
 
 def test_basic(loop):
 	cfg = load_cfg("test.cfg")
-	u = Unit("test.zero", cfg['config'], loop=loop)
+	u = Unit("test.zero", loop=loop, **cfg['config'])
 	loop.run_until_complete(u.start())
 	loop.run_until_complete(u.stop())
 
@@ -35,7 +35,7 @@ def unit2(loop):
 	yield from _unit("two",loop)
 def _unit(name,loop):
 	cfg = load_cfg("test.cfg")['config']
-	u = loop.run_until_complete(unit("test."+name, cfg, loop=loop))
+	u = loop.run_until_complete(unit("test."+name, loop=loop, **cfg))
 	yield u
 	x = u.stop()
 	loop.run_until_complete(x)
@@ -46,7 +46,7 @@ def test_conn_not(loop, unused_tcp_port):
 	cfg = load_cfg("test.cfg")['config']
 	cfg['amqp']['server']['port'] = unused_tcp_port
 	with pytest.raises(OSError):
-		yield from unit("test.no_port", cfg, loop=loop)
+		yield from unit("test.no_port", loop=loop, **cfg)
 
 @pytest.mark.run_loop
 @asyncio.coroutine
@@ -273,7 +273,7 @@ def test_rpc_bad_params(unit1, unit2, loop):
 	
 def test_reg_sync(loop):
 	cfg = load_cfg("test.cfg")['config']
-	u = Unit("test.three", cfg, loop=loop)
+	u = Unit("test.three", loop=loop, **cfg)
 	@u.register_rpc("foo.bar")
 	def foo_bar_0(msg):
 		return "quux from "+msg.data['baz']
