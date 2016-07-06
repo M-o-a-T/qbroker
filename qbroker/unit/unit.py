@@ -13,7 +13,7 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 ##BP
 
 import asyncio
-from ..util import uuidstr, combine_dict
+from ..util import uuidstr, combine_dict, SyncFuncs
 from .msg import RequestMsg,PollMsg,AlertMsg
 from .rpc import CC_MSG
 from . import DEFAULT_CONFIG
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 class _NOTGIVEN:
 	pass
 
-class Unit(object):
+class Unit(object, metaclass=SyncFuncs):
 	"""The basic QBroker messenger."""
 	config = None # configuration data
 	conn = None # AMQP receiver

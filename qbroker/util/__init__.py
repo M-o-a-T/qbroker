@@ -14,12 +14,15 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 
 # Utility code
 
-from importlib import import_module
-from pprint import pformat
-from functools import wraps
-from collections.abc import Mapping
-
+import asyncio
 from base64 import b64encode
+from collections.abc import Mapping
+from functools import wraps,partial
+from importlib import import_module
+import inspect
+from pprint import pformat
+import threading
+
 
 def uuidstr(u=None):
 	if u is None:
@@ -219,4 +222,169 @@ class _StaticMethodAttr(classmethod):
 		# same as classmethod (almost)
 		res = classmethod.__get__(self,i,t)
 		return _StaticMethodType(res.__func__,res.__self__, **self._attrs)
+
+class AioRunner:
+	"""A singleton which supplies a thread for running asyncio tasks.
+
+	Call AioRunner.init(setup,teardown) to set things up; these must
+	be argument-less coroutines which are executed in the new task.
+
+	Call AioRunner.start() to actually create an asyncio event loop.
+
+	Call AioRunner.stop() to halt things.
+
+	Exceptions in setup/teardown will be propagated to start/stop.
+	"""
+	_obj = None
+	thread = None
+	lock = threading.Lock()
+	setup = None
+	teardown = None
+	_loop = None
+
+	def init(self, setup=None,teardown=None):
+		with self.lock:
+			assert self.thread is None
+			self.setup = setup
+			self.teardown = teardown
+
+	def start(self):
+		if self.thread is not None:
+			return
+		with self.lock:
+			assert self.setup is not None
+			assert self._loop is None
+
+			if self.thread is not None:
+				return
+
+			from concurrent import futures
+			self.done = futures.Future()
+			self.ready = futures.Future()
+			self.thread = threading.Thread(target=self._runner)
+			self.thread.start()
+			try:
+				return self.ready.result()
+			except Exception as ex:
+				self.thread.join()
+				self.thread = None
+				raise
+			finally:
+				del self.ready
+
+	def stop(self):
+		if self._loop is None:
+			return
+		self._loop.call_soon_threadsafe(self.end.set_result,None)
+		try:
+			self.done.result()
+		finally:
+			self._loop.close()
+			self.thread.join()
+			self.thread = None
+			self._loop = None
+			self.end = None
+			self.done = None
+
+	@property
+	def loop(self):
+		if self._loop is None:
+			self.start()
+		return self._loop
+
+	def _runner(self):
+		self._loop = asyncio.new_event_loop()
+		asyncio.set_event_loop(self._loop)
+		self.end = asyncio.Future(loop=self._loop)
+
+		@asyncio.coroutine
+		def _worker():
+			try:
+				yield from self.setup()
+			except Exception as ex:
+				self.ready.set_exception(ex)
+				return
+			else:
+				self.ready.set_result(None)
+			yield from self.end
+			if self.teardown is not None:
+				yield from self.teardown()
+
+		try:
+			self._loop.run_until_complete(_worker())
+		except Exception as ex:
+			self.done.set_exception(ex)
+		finally:
+			self.done.set_result(None)
+			
+	def run_async(self,proc,*args, _async=False,_timeout=None, **kwargs):
+		"""Run an asyncio-using procedure.
+		
+		@_async: set if you want to run it in the background and get the
+		         future returned instead.
+		@_timeout: set if you want the procedure cancelled if it takes
+		           longer than that many seconds.
+
+		All other parameters will be passed to @proc.
+		
+		"""
+		from concurrent import futures
+
+		def runner(fx):
+			try:
+				f = asyncio.ensure_future(proc(*args,**kwargs))
+			except BaseException as exc:
+				fx.set_exception(exc)
+			else:
+				def done(ff):
+					assert f is ff, (f,ff)
+					try:
+						fx.set_result(f.result())
+					except Exception as ex:
+						print_exc()
+						fx.set_exception(exc)
+				f.add_done_callback(done)
+
+		fx = futures.Future()
+		AioRunner.loop.call_soon_threadsafe(runner,fx)
+		if _timeout is not None:
+			fx = asyncio.wait_for(fx,_timeout,loop=AioRunner.loop)
+		if _async:
+			return fx
+		else:
+			return fx.result()
+
+AioRunner = AioRunner()
+
+
+class SyncFuncs(type):
+	""" A metaclass which adds synchronous version of coroutines.
+
+	This metaclass finds all coroutine functions defined on a class
+	and adds a synchronous version with a '_sync' suffix appended to the
+	original function name.
+
+	The sync version will behave as if it were called via
+	`AioRunner.run_async`, including its _async and _timeout arguments.
+
+	"""
+	def __new__(cls, clsname, bases, dct, **kwargs):
+		new_dct = {}
+		for name,val in dct.items():
+			# Make a sync version of all coroutine functions
+			if asyncio.iscoroutinefunction(val):
+				meth = cls.sync_maker(name)
+				syncname = '{}_sync'.format(name)
+				meth.__name__ = syncname
+				meth.__qualname__ = '{}.{}'.format(clsname, syncname)
+				new_dct[syncname] = meth
+		dct.update(new_dct)
+		return super().__new__(cls, clsname, bases, dct)
+
+	@staticmethod
+	def sync_maker(func):
+		def sync_func(self, *args, **kwargs):
+			meth = getattr(self, func)
+			return AioRunner.run_async(meth, *args,**kwargs)
+		return sync_func
 
