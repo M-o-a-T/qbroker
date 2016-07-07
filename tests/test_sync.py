@@ -23,8 +23,7 @@ class TestPing(unittest.TestCase):
     def setUp(self):
         self.cfg = load_cfg("test.cfg")
 
-        AioRunner.init(self.setUp_async, self.tearDown_async)
-        AioRunner.start()
+        AioRunner.start(self.setUp_async, self.tearDown_async)
 
     def tearDown(self):
         AioRunner.stop()
@@ -59,7 +58,7 @@ class TestPing(unittest.TestCase):
         u = Unit("test.ping.SYNC", loop=AioRunner.loop, **self.cfg['config'])
         u.start_sync()
         try:
-            plong = u.rpc_sync("pling")
+            plong = u.rpc_sync("pling", _timeout=1)
             assert plong == "plong"
         finally:
             u.stop_sync()

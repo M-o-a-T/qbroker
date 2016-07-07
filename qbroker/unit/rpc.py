@@ -63,3 +63,12 @@ class RPCservice(object):
 		res = (yield from coro_wrapper(self.fn,*a,**k))
 		return res
 
+	def __str__(self):
+		if self.is_alert:
+			n = "ALERT"
+		elif self.is_alert is not None:
+			n = "RPC"
+		else:
+			n = '?'
+		return "‹%s %s %s %s›" % (n,self.name,self.call_conv,self.fn)
+		

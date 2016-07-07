@@ -238,29 +238,22 @@ class AioRunner:
 
 	Exceptions in setup will be propagated.
 	Exceptions in teardown are logged but otherwise ignored.
-	Teardown code must be a no-op if the corresponding setup has not been
-	called.
 	"""
 
 	def __init__(self):
-		self.setup = []
-		self.teardown = []
 		self.lock = threading.Lock()
 		self._cleanup()
 
-	def init(self, setup=None,teardown=None):
-		if setup is not None:
-			self.setup.append(setup)
-			if self._loop is not None:
-				self.run_async(setup)
-		if teardown is not None:
-			self.teardown.append(teardown)
-
-	def start(self):
+	def start(self, setup=None,teardown=None):
 		with self.lock:
 			if self._loop is not None:
-				self._started += 1
+				self.run_async(setup)
+				if teardown is not None:
+					self.teardown.append(teardown)
+				self.started += 1
 				return
+
+			self.setup = setup
 
 			from concurrent import futures
 			self.done = futures.Future()
@@ -268,27 +261,32 @@ class AioRunner:
 			self.thread = threading.Thread(target=self._runner)
 			self.thread.start()
 			try:
-				return self.ready.result()
+				res = self.ready.result()
 			except Exception as ex:
 				self.thread.join()
 				self._cleanup()
 				raise
+			else:
+				if teardown is not None:
+					self.teardown.append(teardown)
+				return res
 			finally:
 				del self.ready
 
 	def stop(self):
 		with self.lock:
 			assert self._loop is not None, "not started"
-			if self._started > 0:
-				self._started -= 1
+			if self.started > 0:
+				self.started -= 1
 				return
 			self._loop.call_soon_threadsafe(self.end.set_result,None)
 			try:
 				self.done.result()
 			finally:
-				self._loop.close()
-				self.thread.join()
-				self.thread = None
+				if self._loop is not None:
+					self._loop.close()
+				if self.thread is not None:
+					self.thread.join()
 				self._cleanup()
 
 	def _cleanup(self):
@@ -296,7 +294,9 @@ class AioRunner:
 		self.thread = None
 		self.end = None
 		self.done = None
-		self._started = 0
+		self.started = 0
+		self.setup = None
+		self.teardown =[]
 
 	@property
 	def loop(self):
@@ -312,8 +312,8 @@ class AioRunner:
 		@asyncio.coroutine
 		def _worker():
 			try:
-				for fn in self.setup:
-					yield from fn()
+				if self.setup is not None:
+					yield from self.setup()
 			except Exception as ex:
 				self.ready.set_exception(ex)
 			else:
@@ -324,13 +324,12 @@ class AioRunner:
 					yield from fn()
 				except Exception as ex:
 					logger.exception("Error during %s", fn)
-			self._cleanup()
 
 		try:
 			self._loop.run_until_complete(_worker())
 		except Exception as ex:
 			self.done.set_exception(ex)
-		finally:
+		else:
 			self.done.set_result(None)
 			
 	def run_async(self,proc,*args, _async=False,_timeout=None, **kwargs):
@@ -348,23 +347,22 @@ class AioRunner:
 
 		def runner(fx):
 			try:
-				f = asyncio.ensure_future(proc(*args,**kwargs))
+				f = asyncio.ensure_future(proc(*args,**kwargs), loop=self.loop)
 			except BaseException as exc:
 				fx.set_exception(exc)
 			else:
+				if _timeout is not None:
+					f = asyncio.ensure_future(asyncio.wait_for(f,_timeout,loop=self.loop), loop=self.loop)
 				def done(ff):
 					assert f is ff, (f,ff)
 					try:
 						fx.set_result(f.result())
-					except Exception as ex:
-						print_exc()
+					except Exception as exc:
 						fx.set_exception(exc)
 				f.add_done_callback(done)
 
 		fx = futures.Future()
 		AioRunner.loop.call_soon_threadsafe(runner,fx)
-		if _timeout is not None:
-			fx = asyncio.wait_for(fx,_timeout,loop=AioRunner.loop)
 		if _async:
 			return fx
 		else:

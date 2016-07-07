@@ -52,12 +52,14 @@ class Connection(object):
 
 	@asyncio.coroutine
 	def connect(self):
+		logger.debug("Connecting %s",self)
 		try:
 			self.amqp_transport,self.amqp = (yield from aioamqp.connect(loop=self._loop, **self.cfg))
 		except Exception as e:
 			logger.exception("Not connected to AMPQ: host=%s vhost=%s user=%s", self.cfg['host'],self.cfg['virtualhost'],self.cfg['login'])
 			raise
 		yield from self.setup_channels()
+		logger.debug("Connected %s",self)
 
 	@asyncio.coroutine
 	def _setup_one(self,name,typ,callback=None, q=None, route_key=None, exclusive=None):

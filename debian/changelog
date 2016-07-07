@@ -1,3 +1,9 @@
+qbroker (0.4.2-1) unstable; urgency=medium
+
+  * Properly nest async start+stop calls
+
+ -- Matthias Urlichs <smurf@noris.de>  Thu, 07 Jul 2016 13:48:58 +0200
+
 qbroker (0.4.1-1) unstable; urgency=medium
 
   * Allow multiple (balanced) calls to AioRunner.start+.stop.

@@ -121,6 +121,7 @@ class BaseMsg(_MsgPart):
 	debug = False
 	# type: needs to be overridden
 	fields = "type version debug message-id"
+	_timer = None
 
 	data = None
 	error = None
