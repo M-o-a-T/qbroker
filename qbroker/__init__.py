@@ -13,7 +13,7 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 ## Thus, please do not remove the next line, or insert any blank lines.
 ##BP
 
-__VERSION__ = (0,3,0)
+__VERSION__ = (0,4,0)
 
 # Not using gevent is not yet supported
 # mainly because you can't kill/cancel OS threads from within Python

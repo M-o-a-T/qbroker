@@ -1,10 +1,17 @@
-dabroker (0.3.0.0) unstable; urgency=medium
+qbroker (0.4.0-1) unstable; urgency=medium
+
+  * Added a way to synchronously call QBroker from threads
+  * Added packaging specific version number
+
+ -- Matthias Urlichs <smurf@noris.de>  Thu, 07 Jul 2016 09:54:02 +0200
+
+qbroker (0.3.0.0) unstable; urgency=medium
 
   * Cleanup configuration
 
  -- Matthias Urlichs <smurf@noris.de>  Fri, 01 Jul 2016 12:21:43 +0200
 
-dabroker (0.2.0.0) unstable; urgency=medium
+qbroker (0.2.0.0) unstable; urgency=medium
 
   * Minimal copy from DaaBroker
   * Downgrade to Python 3.4
