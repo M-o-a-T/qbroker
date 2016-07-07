@@ -7,7 +7,7 @@ import sys
 import unittest
 
 from functools import partial
-from qbroker.util import AioRunner
+from qbroker.util.sync import AioRunner
 from qbroker.unit import make_unit,Unit
 from qbroker.util.tests import load_cfg
 from traceback import print_exc

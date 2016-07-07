@@ -13,7 +13,8 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 ##BP
 
 import asyncio
-from ..util import uuidstr, combine_dict, SyncFuncs
+from ..util import uuidstr, combine_dict
+from ..util.sync import SyncFuncs
 from .msg import RequestMsg,PollMsg,AlertMsg
 from .rpc import CC_MSG
 from . import DEFAULT_CONFIG

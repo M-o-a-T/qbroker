@@ -1,3 +1,9 @@
+qbroker (0.5.0-1) unstable; urgency=medium
+
+  * Refactor sync stuff to its own module.
+
+ -- Matthias Urlichs <smurf@noris.de>  Thu, 07 Jul 2016 14:23:29 +0200
+
 qbroker (0.4.2-1) unstable; urgency=medium
 
   * Properly nest async start+stop calls
