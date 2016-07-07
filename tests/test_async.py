@@ -12,12 +12,17 @@ import qbroker.util.async
 
 class Main(qbroker.util.async.Main):
     @asyncio.coroutine
-    def start(self):
-        super().start()
-        self.loop.call_later(1,self._tilt)
+    def at_start(self):
+        super().at_start()
+        self.add_cleanup(self.HALT)
+        self.loop.call_later(1,self.stop)
+    
+    def HALT(self):
+        self.X = 1
 
 class TestMain(unittest.TestCase):
     def test_main(self):
         m = Main()
         m.run()
+        assert m.X == 1
         

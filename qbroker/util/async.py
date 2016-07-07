@@ -15,32 +15,52 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 # Utility code
 
 import asyncio
+from inspect import isgenerator
 import signal
 
+import logging
+logger = logging.getLogger(__name__)
+
 class Main:
+	"""Implement a bare-bones mainloop for asyncio."""
+
 	def __init__(self):
 		self.loop = asyncio.new_event_loop()
 		asyncio.set_event_loop(self.loop)
 		self._sig = asyncio.Event()
+		self._cleanup = []
 
 		self.loop.add_signal_handler(signal.SIGINT,self._tilt)
 		self.loop.add_signal_handler(signal.SIGTERM,self._tilt)
 
 	@asyncio.coroutine
-	def start(self):
+	def at_start(self):
+		"""Called after successful startup. Overrideable."""
 		yield None
 
 	@asyncio.coroutine
-	def stop(self):
-		yield None
+	def _at_stop(self):
+		"""Process cleanup code. Don't override."""
+		for fn,a,k in self._cleanup[::-1]:
+			try:
+				if isgenerator(fn):
+					yield from fn(*a,**k)
+				else:
+					fn(*a,**k)
+			except Exception:
+				logger.exception("Cleanup: %s %s %s",fn,repr(a),repr(k))
 
+	def add_cleanup(self,fn,*a,**k):
+		"""Register some clean-up code. Processed in reverse order."""
+		self._cleanup.append((fn,a,k))
+	
 	def run(self):
 		self.loop.run_until_complete(self._run())
 	@asyncio.coroutine
 	def _run(self):
-		yield from self.start()
+		yield from self.at_start()
 		yield from self._sig.wait()
-		yield from self.stop()
+		yield from self._at_stop()
 
 	def _tilt(self):
 		self.loop.remove_signal_handler(signal.SIGINT)
@@ -48,4 +68,8 @@ class Main:
 		self.loop.call_soon_threadsafe(self._tilt2)
 	def _tilt2(self):
 		self._sig.set()
+	
+	def stop(self):
+		"""Stop the loop."""
+		self._tilt()
 
