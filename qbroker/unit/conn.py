@@ -277,16 +277,19 @@ class Connection(object):
 	def close(self):
 		a,self.amqp = self.amqp,None
 		if a is not None:
+			logger.debug("Disconnecting %s",self)
 			try:
 				yield from a.close(timeout=1)
 			except Exception: # pragma: no cover
 				logger.exception("closing the connection")
 			self.amqp_transport = None
+			logger.debug("Disconnected %s",self)
 
 	def _kill(self):
 		self.amqp = None
 		a,self.amqp_transport = self.amqp_transport,None
 		if a is not None:
+			logger.debug("Killing %s",self)
 			try:
 				a.close()
 			except Exception: # pragma: no cover
