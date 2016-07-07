@@ -1,3 +1,9 @@
+qbroker (0.4.1-1) unstable; urgency=medium
+
+  * Allow multiple (balanced) calls to AioRunner.start+.stop.
+
+ -- Matthias Urlichs <smurf@noris.de>  Thu, 07 Jul 2016 10:22:12 +0200
+
 qbroker (0.4.0-1) unstable; urgency=medium
 
   * Added a way to synchronously call QBroker from threads

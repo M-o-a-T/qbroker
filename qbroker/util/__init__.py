@@ -228,34 +228,38 @@ class AioRunner:
 
 	Call AioRunner.init(setup,teardown) to set things up; these must
 	be argument-less coroutines which are executed in the new task.
+	If the loop is already running, @setup is scheduled immediately.
 
 	Call AioRunner.start() to actually create an asyncio event loop.
 
-	Call AioRunner.stop() to halt things.
+	Call AioRunner.stop() to halt things. All registered teardown functions
+	will be called in reverse order.
+	Calls to .start() and .stop() must be balanced.
 
-	Exceptions in setup/teardown will be propagated to start/stop.
+	Exceptions in setup will be propagated.
+	Exceptions in teardown are logged but otherwise ignored.
+	Teardown code must be a no-op if the corresponding setup has not been
+	called.
 	"""
-	_obj = None
-	thread = None
-	lock = threading.Lock()
-	setup = None
-	teardown = None
-	_loop = None
+
+	def __init__(self):
+		self.setup = []
+		self.teardown = []
+		self.lock = threading.Lock()
+		self._cleanup()
 
 	def init(self, setup=None,teardown=None):
-		with self.lock:
-			assert self.thread is None
-			self.setup = setup
-			self.teardown = teardown
+		if setup is not None:
+			self.setup.append(setup)
+			if self._loop is not None:
+				self.run_async(setup)
+		if teardown is not None:
+			self.teardown.append(teardown)
 
 	def start(self):
-		if self.thread is not None:
-			return
 		with self.lock:
-			assert self.setup is not None
-			assert self._loop is None
-
-			if self.thread is not None:
+			if self._loop is not None:
+				self._started += 1
 				return
 
 			from concurrent import futures
@@ -267,24 +271,32 @@ class AioRunner:
 				return self.ready.result()
 			except Exception as ex:
 				self.thread.join()
-				self.thread = None
+				self._cleanup()
 				raise
 			finally:
 				del self.ready
 
 	def stop(self):
-		if self._loop is None:
-			return
-		self._loop.call_soon_threadsafe(self.end.set_result,None)
-		try:
-			self.done.result()
-		finally:
-			self._loop.close()
-			self.thread.join()
-			self.thread = None
-			self._loop = None
-			self.end = None
-			self.done = None
+		with self.lock:
+			assert self._loop is not None, "not started"
+			if self._started > 0:
+				self._started -= 1
+				return
+			self._loop.call_soon_threadsafe(self.end.set_result,None)
+			try:
+				self.done.result()
+			finally:
+				self._loop.close()
+				self.thread.join()
+				self.thread = None
+				self._cleanup()
+
+	def _cleanup(self):
+		self._loop = None
+		self.thread = None
+		self.end = None
+		self.done = None
+		self._started = 0
 
 	@property
 	def loop(self):
@@ -300,15 +312,19 @@ class AioRunner:
 		@asyncio.coroutine
 		def _worker():
 			try:
-				yield from self.setup()
+				for fn in self.setup:
+					yield from fn()
 			except Exception as ex:
 				self.ready.set_exception(ex)
-				return
 			else:
 				self.ready.set_result(None)
-			yield from self.end
-			if self.teardown is not None:
-				yield from self.teardown()
+				yield from self.end
+			for fn in self.teardown[::-1]:
+				try:
+					yield from fn()
+				except Exception as ex:
+					logger.exception("Error during %s", fn)
+			self._cleanup()
 
 		try:
 			self._loop.run_until_complete(_worker())
