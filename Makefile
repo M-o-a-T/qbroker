@@ -1,7 +1,7 @@
 #!/usr/bin/make -f
 
 export PYTHONPATH=$(shell pwd)
-PYTEST:=env PYTHONPATH=$(shell pwd) python /home/smurf/nnis/devenv/lib/python3.4/site-packages/pytest.py
+PYTEST:=env PYTHONPATH=$(shell pwd) py.test-3
 
 test: test.cfg
 	@rm -f test.log
