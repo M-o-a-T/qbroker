@@ -1,3 +1,10 @@
+qbroker (0.7.1-1) unstable; urgency=medium
+
+  * Bug fixes
+  * added _async to *_gevent for symmetry
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Mon, 11 Jul 2016 14:48:05 +0200
+
 qbroker (0.7.0-1) unstable; urgency=medium
 
   * added gevent mainloop helper
