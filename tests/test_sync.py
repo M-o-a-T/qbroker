@@ -1,5 +1,9 @@
 # -*- coding: UTF-8 -*-
 
+import qbroker.util.sync as sync
+sync.setup(sync=True)
+AioRunner = sync.AioRunner
+
 import asyncio
 import os
 import pytest
@@ -7,7 +11,6 @@ import sys
 import unittest
 
 from functools import partial
-from qbroker.util.sync import AioRunner
 from qbroker.unit import make_unit,Unit
 from qbroker.util.tests import load_cfg
 from traceback import print_exc

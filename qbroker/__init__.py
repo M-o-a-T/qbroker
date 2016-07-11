@@ -44,3 +44,6 @@ def unit(app, cfg="/etc/qbroker.cfg", **args):
 	from qbroker.unit import Unit
 	return Unit(app,cfg, **args)
 
+# If you want to use thread- or gevent-aware functions, set these.
+SYNC = False
+GEVENT = False
