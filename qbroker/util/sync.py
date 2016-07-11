@@ -199,6 +199,9 @@ class SyncFuncs(type):
 	The sync version will behave as if it were called via
 	`AioRunner.run_async`, including its _async and _timeout arguments.
 
+	The gevent version will behave as if it were called via
+	`aiogevent.yield_future`, including its _timeout arguments.
+
 	"""
 	def __new__(cls, clsname, bases, dct, **kwargs):
 		new_dct = {}
@@ -227,8 +230,11 @@ def sync_maker(func):
 	return sync_func
 
 def gevent_maker(func):
-	def gevent_func(self, *args, **kwargs):
+	def gevent_func(self, *args, _timeout=None, **kwargs):
 		meth = getattr(self, func)
-		return aiogevent.yield_future(asyncio.ensure_future(meth(*args,**kwargs), loop=loop))
+		f = asyncio.ensure_future(meth(*args,**kwargs), loop=loop)
+		if _timeout is not None:
+			f = asyncio.ensure_future(asyncio.wait_for(f,_timeout,loop=loop), loop=loop)
+		return aiogevent.yield_future(f)
 	return gevent_func
 
