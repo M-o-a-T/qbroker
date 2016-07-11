@@ -38,13 +38,6 @@ def compile_po(path):
                     mo.write(mo_content)
                     mo.close()
 
-try:
-    compile_po(join(os.getcwd(), 'i18n_resources'))
-except Exception:
-    print('Error while building .mo files')
-else:
-    print('.mo files compilation success')
-
 def read(filename):
     text = open(filename,'r').read()
     return xml.sax.saxutils.escape(text)
