@@ -230,11 +230,14 @@ def sync_maker(func):
 	return sync_func
 
 def gevent_maker(func):
-	def gevent_func(self, *args, _timeout=None, **kwargs):
+	def gevent_func(self, *args, _timeout=None, _async=False, **kwargs):
 		meth = getattr(self, func)
 		f = asyncio.ensure_future(meth(*args,**kwargs), loop=loop)
 		if _timeout is not None:
 			f = asyncio.ensure_future(asyncio.wait_for(f,_timeout,loop=loop), loop=loop)
-		return aiogevent.yield_future(f)
+		if _async:
+			return gevent.spawn(aiogevent.yield_future,f)
+		else:
+			return aiogevent.yield_future(f)
 	return gevent_func
 
