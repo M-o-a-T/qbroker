@@ -17,4 +17,5 @@ test.cfg:
 
 update:
 	@sh utils/update_boilerplate
-
+pypi upload:
+	python setup.py sdist upload
