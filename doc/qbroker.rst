@@ -18,6 +18,15 @@ RPC messages are read by one client, which will process it and send one
 answer. If no client is present, RabbitMQ offers a timeout queue, i.e.
 unprocessed requests get re-queued to where a dedicated error logger+replier
 can process them.
+(Doing this is application specific, thus not part of QBroker.)
+
+The routing key for requests and alerts is the service to be addressed,
+i.e. "web.users.list" to retrieve a list of web users. Replies use the
+content of the request's reply-to field.
+
+--------------
+AMQP structure
+--------------
 
 Exchanges
 =========
@@ -85,40 +94,43 @@ The body and error parts are both optional.
 header
 ------
 
-Meta information about the message. Some of the data replicates information
-in the AMQP header.
+Meta information about the message. This is stored in the AMQP header.
 
-* version
+* headers.version
 
   The protocol version. Currently 1.
 
-* type
+* app-id
 
-  request / reply / alert
+  The ID of the application (QBroker unit) which generated the message.
+  This is random and unique.
 
 * message-id
 
-  Some unique string.
-
-* name
-
-  A dotted name, like "qbroker.info". Used for message routing.
+  Some unique random string to identify each message.
 
 * reply-to
 
-  The UUID to which replies should be addressed.
+  in requests, the routing key with which replies should be sent.
 
-  Required for requests, optional for alerts.
+* headers.name
 
-* in-reply-to
+  A dotted name, like "qbroker.info", which identifies the message destination.
+  Present in requests and alerts. Matches the routing key.
 
-  The ``message-id`` of the request or alert this message is a reply to.
+* correlation-id
 
-  Required for replies, forbidden for other messages.
+  The UUID to which replies should be addressed. Matches the message-id of
+  the request it is sent in answer of.
 
-* debug
+* headers.debug
 
   A flag. If true, replies are supposed to include debugging information.
+
+* content-type
+
+  application/json
+
 
 body
 ----
