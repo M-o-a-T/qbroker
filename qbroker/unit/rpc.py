@@ -34,12 +34,15 @@ def coro_wrapper(proc, *a,**k):
 		into a "yield from"-style coroutine.
 		"""
 	did_call = False
-	if inspect.iscoroutinefunction(proc):
+	if inspect.iscoroutinefunction(proc) or inspect.isgeneratorfunction(proc):
 		proc = proc(*a,**k)
-	if inspect.isawaitable(proc):
+		did_call = True
+	if hasattr(proc,'__await__'):
 		return (yield from proc.__await__())
-	if inspect.iscoroutine(proc):
+	if inspect.iscoroutine(proc) or inspect.isgenerator(proc):
 		return (yield from proc)
+	if did_call:
+		return proc
 	return proc(*a,**k)
 
 class RPCservice(object):
