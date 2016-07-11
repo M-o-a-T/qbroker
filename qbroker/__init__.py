@@ -13,7 +13,7 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 ## Thus, please do not remove the next line, or insert any blank lines.
 ##BP
 
-__VERSION__ = (0,7,0)
+__VERSION__ = (0,7,1)
 
 
 # Python 3.5 deprecates .async in favor of .ensure_future
@@ -28,5 +28,9 @@ def unit(*a,**kw):
 	u = Unit(app,cfg, **args)
 	yield from u.start()
 	return u
+
+def setup(*a,**k):
+	import qbroker.util.sync as sync
+	return sync.setup(*a,**k)
 
 # unit_sync() and/or unit_gevent() will be added by qbroker.util.sync.setup()
