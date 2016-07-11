@@ -171,6 +171,10 @@ def setup(sync=False,gevent=False):
 					return fx.result()
 
 		AioRunner = AioRunner()
+
+		def unit_sync(*a,**k):
+			return AioRunner.run_async(qbroker.unit, *args,**kwargs)
+		qbroker.unit_sync = unit_sync
 	
 	global loop
 	if gevent and not loop:
@@ -179,6 +183,10 @@ def setup(sync=False,gevent=False):
 		import aiogevent
 		asyncio.set_event_loop_policy(aiogevent.EventLoopPolicy())
 		loop = asyncio.get_event_loop()
+
+		def unit_gevent(*a,**k):
+			return aiogevent.yield_future(asyncio.ensure_future(qbroker.unit(*args,**kwargs), loop=loop))
+		qbroker.unit_gevent = unit_gevent
 
 
 class SyncFuncs(type):
@@ -197,13 +205,13 @@ class SyncFuncs(type):
 		for name,val in dct.items():
 			# Make a sync version of all coroutine functions
 			if asyncio.iscoroutinefunction(val):
-				meth = cls.sync_maker(name)
+				meth = sync_maker(name)
 				syncname = '{}_sync'.format(name)
 				meth.__name__ = syncname
 				meth.__qualname__ = '{}.{}'.format(clsname, syncname)
 				new_dct[syncname] = meth
 
-				meth = cls.greenlet_maker(name)
+				meth = gevent_maker(name)
 				syncname = '{}_gevent'.format(name)
 				meth.__name__ = syncname
 				meth.__qualname__ = '{}.{}'.format(clsname, syncname)
@@ -212,17 +220,15 @@ class SyncFuncs(type):
 
 		return super().__new__(cls, clsname, bases, dct)
 
-	@staticmethod
-	def sync_maker(func):
-		def sync_func(self, *args, **kwargs):
-			meth = getattr(self, func)
-			return AioRunner.run_async(meth, *args,**kwargs)
-		return sync_func
+def sync_maker(func):
+	def sync_func(self, *args, **kwargs):
+		meth = getattr(self, func)
+		return AioRunner.run_async(meth, *args,**kwargs)
+	return sync_func
 
-	@staticmethod
-	def greenlet_maker(func):
-		def sync_func(self, *args, **kwargs):
-			meth = getattr(self, func)
-			return aiogevent.yield_future(asyncio.ensure_future(meth(*args,**kwargs), loop=loop))
-		return sync_func
+def gevent_maker(func):
+	def gevent_func(self, *args, **kwargs):
+		meth = getattr(self, func)
+		return aiogevent.yield_future(asyncio.ensure_future(meth(*args,**kwargs), loop=loop))
+	return gevent_func
 

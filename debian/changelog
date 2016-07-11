@@ -1,3 +1,10 @@
+qbroker (0.7.0-1) unstable; urgency=medium
+
+  * added gevent mainloop helper
+  * updated documentation
+
+ -- Matthias Urlichs <smurf@noris.de>  Mon, 11 Jul 2016 11:56:49 +0200
+
 qbroker (0.6.0-1) unstable; urgency=medium
 
   * Add an async mainloop helper

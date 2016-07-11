@@ -13,37 +13,20 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 ## Thus, please do not remove the next line, or insert any blank lines.
 ##BP
 
-__VERSION__ = (0,6.0)
+__VERSION__ = (0,7,0)
 
-# Not using gevent is not yet supported
-# mainly because you can't kill/cancel OS threads from within Python
-USE_GEVENT=True
 
-## change the default encoding to UTF-8
-## this is a no-op in PY3
-# PY2 defaults to ASCII, which requires adding spurious .encode("utf-8") to
-# absolutely everything you might want to print / write to a file
-import sys
-try:
-	reload(sys)
-except NameError:
-	# py3 doesn't have reload()
-	pass
-else:
-	# py3 also doesn't have sys.setdefaultencoding
-	sys.setdefaultencoding("utf-8")
-
+# Python 3.5 deprecates .async in favor of .ensure_future
 import asyncio
-try:
-	asyncio.ensure_future
-except AttributeError:
+if not hasattr(asyncio,'ensure_future'):
 	asyncio.ensure_future = asyncio.async
 
-def unit(app, cfg="/etc/qbroker.cfg", **args):
-	"""Return the QBroker unit for this app."""
-	from qbroker.unit import Unit
-	return Unit(app,cfg, **args)
+@asyncio.coroutine
+def unit(*a,**kw):
+	"""Return a QBroker unit."""
+	from .unit import Unit
+	u = Unit(app,cfg, **args)
+	yield from u.start()
+	return u
 
-# If you want to use thread- or gevent-aware functions, set these.
-SYNC = False
-GEVENT = False
+# unit_sync() and/or unit_gevent() will be added by qbroker.util.sync.setup()

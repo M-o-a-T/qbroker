@@ -6,9 +6,7 @@ import sys
 import unittest
 import gevent
 import aiogevent
-
-if not hasattr(asyncio,'ensure_future'):
-    asyncio.ensure_future = asyncio.async
+import qbroker
 
 # This is not really necessary for QBroker per se.
 # These tests are only intended to ensure that asyncio and gevent play well together.

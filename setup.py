@@ -24,11 +24,6 @@ def get_version(fname='qbroker/__init__.py'):
             if line.startswith('__VERSION__'):
                 return eval(line.split('=')[-1])
 
-try:
-    from msgfmt import Msgfmt
-except:
-    sys.path.insert(0, join(os.getcwd(), 'formalchemy'))
-
 def compile_po(path):
     from msgfmt import Msgfmt
     for language in os.listdir(path):
@@ -44,7 +39,7 @@ def compile_po(path):
                     mo.close()
 
 try:
-    compile_po(join(os.getcwd(), 'formalchemy', 'i18n_resources'))
+    compile_po(join(os.getcwd(), 'i18n_resources'))
 except Exception:
     print('Error while building .mo files')
 else:
@@ -70,13 +65,12 @@ setup(name='QBroker',
       install_requires=REQUIREMENTS,
       packages=find_packages(exclude=('tests',)),
       classifiers=[
-          'Development Status :: 3 - Alpha',
+          'Development Status :: 4 - Beta',
           'Intended Audience :: Developers',
           'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
           'Natural Language :: English',
           'Operating System :: OS Independent',
           'Programming Language :: Python',
-          'Topic :: Database :: Front-Ends',
           'Topic :: Software Development :: Libraries :: Application Frameworks',
           'Topic :: Software Development :: Libraries :: Python Modules',
           'Topic :: Utilities',
