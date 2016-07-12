@@ -172,9 +172,9 @@ def setup(sync=False,gevent=False):
 
 		AioRunner = AioRunner()
 
-		def unit_sync(*a,**k):
-			return AioRunner.run_async(qbroker.unit, *args,**kwargs)
-		qbroker.unit_sync = unit_sync
+		def make_unit_sync(*a,**k):
+			return AioRunner.run_async(qbroker.make_unit, *args,**kwargs)
+		qbroker.make_unit_sync = make_unit_sync
 	
 	global loop
 	if gevent and not loop:
@@ -184,9 +184,9 @@ def setup(sync=False,gevent=False):
 		asyncio.set_event_loop_policy(aiogevent.EventLoopPolicy())
 		loop = asyncio.get_event_loop()
 
-		def unit_gevent(*a,**k):
-			return aiogevent.yield_future(asyncio.ensure_future(qbroker.unit(*args,**kwargs), loop=loop))
-		qbroker.unit_gevent = unit_gevent
+		def make_unit_gevent(*a,**k):
+			return aiogevent.yield_future(asyncio.ensure_future(qbroker.make_unit(*args,**kwargs), loop=loop))
+		qbroker.make_unit_gevent = make_unit_gevent
 
 
 class SyncFuncs(type):

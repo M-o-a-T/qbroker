@@ -1,3 +1,10 @@
+qbroker (0.8.0-1) unstable; urgency=medium
+
+  * qbroker.unit renamed to make_unit
+    so as to not mask the module
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Tue, 12 Jul 2016 08:49:15 +0200
+
 qbroker (0.7.3-1) unstable; urgency=medium
 
   * Export Unit globally
