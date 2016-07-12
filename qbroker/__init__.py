@@ -13,7 +13,7 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 ## Thus, please do not remove the next line, or insert any blank lines.
 ##BP
 
-__VERSION__ = (0,7,1)
+__VERSION__ = (0,7,2)
 
 
 # Python 3.5 deprecates .async in favor of .ensure_future
