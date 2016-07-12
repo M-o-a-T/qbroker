@@ -1,3 +1,9 @@
+qbroker (0.7.3-1) unstable; urgency=medium
+
+  * Export Unit globally
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Tue, 12 Jul 2016 08:44:01 +0200
+
 qbroker (0.7.2-1) unstable; urgency=medium
 
   * Add a .when_disconnected future to the AMQP protocol

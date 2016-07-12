@@ -13,7 +13,7 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 ## Thus, please do not remove the next line, or insert any blank lines.
 ##BP
 
-__VERSION__ = (0,7,2)
+__VERSION__ = (0,7,3)
 
 
 # Python 3.5 deprecates .async in favor of .ensure_future
@@ -21,10 +21,11 @@ import asyncio
 if not hasattr(asyncio,'ensure_future'):
 	asyncio.ensure_future = asyncio.async
 
+from .unit import Unit
+
 @asyncio.coroutine
 def unit(*a,**kw):
 	"""Return a QBroker unit."""
-	from .unit import Unit
 	u = Unit(app,cfg, **args)
 	yield from u.start()
 	return u
