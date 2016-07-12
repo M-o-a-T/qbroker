@@ -7,6 +7,7 @@ import unittest
 import gevent
 import aiogevent
 import qbroker
+from qbroker.util.sync import await_gevent
 
 # This is not really necessary for QBroker per se.
 # These tests are only intended to ensure that asyncio and gevent play well together.
@@ -45,8 +46,7 @@ class TestPing(unittest.TestCase):
         j.join()
 
     def helloer(self):
-        j = asyncio.ensure_future(self.hello_world())
-        r = aiogevent.yield_future(j)
+        r = await_gevent(self.hello_world, _loop=self.loop)
         return r+2
 
     def loop_thread(self, f):

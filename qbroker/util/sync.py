@@ -13,6 +13,24 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 ## Thus, please do not remove the next line, or insert any blank lines.
 ##BP
 
+"""\
+This module implements accessors for using QBroker in a threaded environment,
+either natively or via gevent.
+
+For native threads, call `qbroker.setup(sync=True)` and use `*_sync` methods.
+You can run asyncio code thus:
+>>> from qbroker.util.sync import AioRunner
+>>> result = await_sync(proc,*a,**kw)
+
+For gevent threads, call `qbroker.setup(gevent=True)` and use `*_gevent` methods.
+You can run asyncio code thus:
+>>> from qbroker.util.sync import await_from
+>>> result = await_gevent(proc,*a,**kw)
+
+Note that, unlike these functions, native asyncio calls the procedure directly:
+>>> res = (yield from proc(*a,**k)) ## Python 3.4
+>>> res = await proc(*a,**k)        ## Python 3.5+
+"""
 # Utility code
 
 import asyncio
@@ -34,6 +52,11 @@ class AioRunner:
 
 	Exceptions in setup will be propagated.
 	Exceptions in teardown are logged but otherwise ignored.
+
+	You need to call qbroker.setup(sync=True) before this is useable.
+
+	NOTE: this is not useful for gevent threads!
+	Instead, call qbroker.setup(gevent=True) and use the `aiogevent` module.
 	"""
 
 	def __init__(self):
@@ -240,4 +263,16 @@ def gevent_maker(func):
 		else:
 			return aiogevent.yield_future(f)
 	return gevent_func
+
+def await_sync(proc,*a,**k):
+	"""Helper function to wait for an async result from a native thread"""
+	return AioRunner.run_async(proc,*a,**k)
+
+def await_gevent(proc,*a, _loop=None, **k):
+	"""Helper function to wait for an async result from a gevent thread"""
+	if _loop is None:
+		loop = loop
+	p = proc(*a,**k)
+	f = asyncio.ensure_future(p, loop=_loop)
+	return aiogevent.yield_future(f, loop=_loop)
 

@@ -1,3 +1,9 @@
+qbroker (0.8.2-1) unstable; urgency=medium
+
+  * Cleanup handling of generic async calls from non-async code.
+
+ -- Matthias Urlichs <smurf@noris.de>  Tue, 12 Jul 2016 11:05:23 +0200
+
 qbroker (0.8.1-1) unstable; urgency=medium
 
   * Improve inline documentation.
