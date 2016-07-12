@@ -61,7 +61,7 @@ setup(name='QBroker',
       long_description=long_description,
       author='Matthias Urlichs',
       author_email='matthias@urlichs.de',
-      url='http://qbroker.n-online.de/',
+      url='https://github.com/M-o-a-T/qbroker',
       install_requires=REQUIREMENTS,
       packages=find_packages(exclude=('tests',)),
       classifiers=[
