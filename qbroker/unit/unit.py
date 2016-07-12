@@ -35,6 +35,20 @@ class Unit(object, metaclass=SyncFuncs):
 	restarting = None
 
 	def __init__(self, app, *, loop=None, **cfg):
+		"""\
+			Connect to an AMQP server. See qbroker.unit.DEFAULT_CONFIG for
+			all recognized parameters.
+
+			>>> u = Unit("my_nice_server", 
+			...      amqp=dict(
+			...         server=dict(
+			...            login="foo",
+			...            password="bar",
+			...            virtualhost="/test")))
+
+			You need to call .start() to actually initiate a connection.
+			"""
+
 		self._loop = loop or asyncio.get_event_loop()
 		self.app = app
 
