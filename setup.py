@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, print_function, division, unicode_literals
 ##
-## This file is part of QBroker, a distributed data access manager.
+## This file is part of QBroker, an easy to use RPC and broadcast
+## client+server using AMQP.
 ##
 ## QBroker is Copyright © 2016 by Matthias Urlichs <matthias@urlichs.de>,
 ## it is licensed under the GPLv3. See the file `README.rst` for details,
@@ -54,7 +55,7 @@ setup(name='QBroker',
       long_description=long_description,
       author='Matthias Urlichs',
       author_email='matthias@urlichs.de',
-      url='http://qbroker.n-online.de/',
+      url='https://github.com/M-o-a-T/qbroker',
       install_requires=REQUIREMENTS,
       packages=find_packages(exclude=('tests',)),
       classifiers=[

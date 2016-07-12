@@ -1,8 +1,9 @@
 # -*- coding: UTF-8 -*-
 
 
-import qbroker.util.sync as sync
-sync.setup(gevent=True)
+import qbroker
+qbroker.setup(gevent=True)
+from qbroker.util import sync
 
 import aiogevent
 import asyncio

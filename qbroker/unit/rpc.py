@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, print_function, division, unicode_literals
 ##
-## This file is part of QBroker, a distributed data access manager.
+## This file is part of QBroker, an easy to use RPC and broadcast
+## client+server using AMQP.
 ##
 ## QBroker is Copyright © 2016 by Matthias Urlichs <matthias@urlichs.de>,
 ## it is licensed under the GPLv3. See the file `README.rst` for details,
@@ -34,12 +35,15 @@ def coro_wrapper(proc, *a,**k):
 		into a "yield from"-style coroutine.
 		"""
 	did_call = False
-	if inspect.iscoroutinefunction(proc):
+	if inspect.iscoroutinefunction(proc) or inspect.isgeneratorfunction(proc):
 		proc = proc(*a,**k)
-	if inspect.isawaitable(proc):
+		did_call = True
+	if hasattr(proc,'__await__'):
 		return (yield from proc.__await__())
-	if inspect.iscoroutine(proc):
+	if inspect.iscoroutine(proc) or inspect.isgenerator(proc):
 		return (yield from proc)
+	if did_call:
+		return proc
 	return proc(*a,**k)
 
 class RPCservice(object):

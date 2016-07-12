@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, print_function, division, unicode_literals
 ##
-## This file is part of QBroker, a distributed data access manager.
+## This file is part of QBroker, an easy to use RPC and broadcast
+## client+server using AMQP.
 ##
 ## QBroker is Copyright © 2016 by Matthias Urlichs <matthias@urlichs.de>,
 ## it is licensed under the GPLv3. See the file `README.rst` for details,
@@ -172,9 +173,9 @@ def setup(sync=False,gevent=False):
 
 		AioRunner = AioRunner()
 
-		def unit_sync(*a,**k):
-			return AioRunner.run_async(qbroker.unit, *args,**kwargs)
-		qbroker.unit_sync = unit_sync
+		def make_unit_sync(*a,**k):
+			return AioRunner.run_async(qbroker.make_unit, *args,**kwargs)
+		qbroker.make_unit_sync = make_unit_sync
 	
 	global loop
 	if gevent and not loop:
@@ -184,10 +185,9 @@ def setup(sync=False,gevent=False):
 		asyncio.set_event_loop_policy(aiogevent.EventLoopPolicy())
 		loop = asyncio.get_event_loop()
 
-		def unit_gevent(*a,**k):
-			return aiogevent.yield_future(asyncio.ensure_future(qbroker.unit(*args,**kwargs), loop=loop))
-		qbroker.unit_gevent = unit_gevent
-
+		def make_unit_gevent(*a,**k):
+			return aiogevent.yield_future(asyncio.ensure_future(qbroker.make_unit(*args,**kwargs), loop=loop))
+		qbroker.make_unit_gevent = make_unit_gevent
 
 class SyncFuncs(type):
 	""" A metaclass which adds synchronous version of coroutines.
@@ -198,6 +198,9 @@ class SyncFuncs(type):
 
 	The sync version will behave as if it were called via
 	`AioRunner.run_async`, including its _async and _timeout arguments.
+
+	The gevent version will behave as if it were called via
+	`aiogevent.yield_future`, including its _timeout arguments.
 
 	"""
 	def __new__(cls, clsname, bases, dct, **kwargs):
@@ -227,8 +230,14 @@ def sync_maker(func):
 	return sync_func
 
 def gevent_maker(func):
-	def gevent_func(self, *args, **kwargs):
+	def gevent_func(self, *args, _timeout=None, _async=False, **kwargs):
 		meth = getattr(self, func)
-		return aiogevent.yield_future(asyncio.ensure_future(meth(*args,**kwargs), loop=loop))
+		f = asyncio.ensure_future(meth(*args,**kwargs), loop=loop)
+		if _timeout is not None:
+			f = asyncio.ensure_future(asyncio.wait_for(f,_timeout,loop=loop), loop=loop)
+		if _async:
+			return gevent.spawn(aiogevent.yield_future,f)
+		else:
+			return aiogevent.yield_future(f)
 	return gevent_func
 

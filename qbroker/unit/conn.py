@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, print_function, division, unicode_literals
 ##
-## This file is part of QBroker, a distributed data access manager.
+## This file is part of QBroker, an easy to use RPC and broadcast
+## client+server using AMQP.
 ##
 ## QBroker is Copyright © 2016 by Matthias Urlichs <matthias@urlichs.de>,
 ## it is licensed under the GPLv3. See the file `README.rst` for details,
@@ -54,10 +55,12 @@ class Connection(object):
 	def connect(self):
 		logger.debug("Connecting %s",self)
 		try:
-			self.amqp_transport,self.amqp = (yield from aioamqp.connect(loop=self._loop, **self.cfg))
+			self.amqp_transport,self.amqp = (yield from aioamqp.connect(loop=self._loop, protocol_factory=NotifyingAmqpProtocol, **self.cfg))
+			#self.amqp_transport,self.amqp = (yield from aioamqp.connect(loop=self._loop, **self.cfg))
 		except Exception as e:
 			logger.exception("Not connected to AMPQ: host=%s vhost=%s user=%s", self.cfg['host'],self.cfg['virtualhost'],self.cfg['login'])
 			raise
+		self.amqp._init_futures(self._loop)
 		yield from self.setup_channels()
 		logger.debug("Connected %s",self)
 
@@ -294,4 +297,25 @@ class Connection(object):
 				a.close()
 			except Exception: # pragma: no cover
 				logger.exception("killing the connection")
+
+import aioamqp.protocol
+class NotifyingAmqpProtocol(aioamqp.protocol.AmqpProtocol):
+	"""Adds a future that triggers when the protocol gets disconnected"""
+	when_disconnected = None
+
+	def _init_futures(self,loop):
+		self.when_disconnected = asyncio.Future(loop=loop)
+
+	def connection_made(self, exc):
+		if self.when_disconnected is not None and self.when_disconnected.done():
+			self.when_disconnected = asyncio.Future(loop=self.when_disconnected._loop)
+		super().connection_made(exc)
+
+	def connection_lost(self, exc):
+		super().connection_lost(exc)
+		if self.when_disconnected is not None:
+			if exc is None:
+				self.when_disconnected.set_result(None)
+			else:
+				self.when_disconnected.set_exception(exc)
 
