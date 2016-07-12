@@ -29,14 +29,13 @@ def setup(sync=False,gevent=False):
 		class AioRunner:
 			"""A singleton which supplies a thread for running asyncio tasks.
 
-			Call AioRunner.init(setup,teardown) to set things up; these must
+			Call AioRunner.start(setup,teardown) to set things up; these must
 			be argument-less coroutines which are executed in the new task.
 			If the loop is already running, @setup is scheduled immediately.
 
-			Call AioRunner.start() to actually create an asyncio event loop.
-
 			Call AioRunner.stop() to halt things. All registered teardown functions
 			will be called in reverse order.
+
 			Calls to .start() and .stop() must be balanced.
 
 			Exceptions in setup will be propagated.
