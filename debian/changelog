@@ -1,3 +1,9 @@
+qbroker (0.8.3-1) unstable; urgency=medium
+
+  * async.Main: fix shutdown code
+
+ -- Matthias Urlichs <smurf@noris.de>  Wed, 13 Jul 2016 09:13:55 +0200
+
 qbroker (0.8.2-1) unstable; urgency=medium
 
   * Cleanup handling of generic async calls from non-async code.

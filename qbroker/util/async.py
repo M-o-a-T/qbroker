@@ -16,7 +16,7 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 # Utility code
 
 import asyncio
-from inspect import isgenerator
+from inspect import isgeneratorfunction
 import signal
 
 import logging
@@ -44,7 +44,7 @@ class Main:
 		"""Process cleanup code. Don't override."""
 		for fn,a,k in self._cleanup[::-1]:
 			try:
-				if isgenerator(fn):
+				if isgeneratorfunction(fn):
 					yield from fn(*a,**k)
 				else:
 					fn(*a,**k)
@@ -57,6 +57,7 @@ class Main:
 	
 	def run(self):
 		self.loop.run_until_complete(self._run())
+
 	@asyncio.coroutine
 	def _run(self):
 		yield from self.at_start()
