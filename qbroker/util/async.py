@@ -16,11 +16,13 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 # Utility code
 
 import asyncio
-from inspect import isgeneratorfunction
+import inspect
 import signal
 
 import logging
 logger = logging.getLogger(__name__)
+
+iscoroutinefunction = getattr(inspect,'iscoroutinefunction', lambda _:False)
 
 class Main:
 	"""Implement a bare-bones mainloop for asyncio."""
@@ -44,7 +46,7 @@ class Main:
 		"""Process cleanup code. Don't override."""
 		for fn,a,k in self._cleanup[::-1]:
 			try:
-				if isgeneratorfunction(fn):
+				if inspect.isgeneratorfunction(fn) or iscoroutinefunction(fn):
 					yield from fn(*a,**k)
 				else:
 					fn(*a,**k)
