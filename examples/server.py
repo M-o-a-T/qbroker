@@ -20,7 +20,7 @@ from qbroker.util.tests import load_cfg
 
 import logging
 import sys
-logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
 u=Unit("test.server", **load_cfg("test.cfg")['config'])
 

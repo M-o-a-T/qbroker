@@ -20,7 +20,7 @@ from qbroker.util.tests import load_cfg
 import logging
 import sys
 from pprint import pprint
-logging.basicConfig(stream=sys.stderr, level=logging.WARNING)
+logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
 u=Unit("test.ping", **load_cfg("test.cfg")['config'])
 

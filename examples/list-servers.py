@@ -22,7 +22,7 @@ from traceback import print_exc
 
 import logging
 import sys
-logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
 u=Unit("test.client.list_servers", **load_cfg("test.cfg")['config'])
 
@@ -39,6 +39,7 @@ def cb(data):
 @asyncio.coroutine
 def example(app=None):
 	yield from u.start()
+	yield from asyncio.sleep(1)
 	d = {}
 	if app is not None:
 		d['app'] = app
