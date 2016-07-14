@@ -1,3 +1,10 @@
+qbroker (0.8.4-1) unstable; urgency=medium
+
+  * Register the app name with "ping"
+  * Filter replies to ping alert by appname
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Thu, 14 Jul 2016 10:43:01 +0200
+
 qbroker (0.8.3-1) unstable; urgency=medium
 
   * async.Main: fix shutdown code

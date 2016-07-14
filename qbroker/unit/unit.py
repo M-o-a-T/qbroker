@@ -67,6 +67,7 @@ class Unit(object, metaclass=SyncFuncs):
 
 		self.register_alert("qbroker.ping",self._alert_ping)
 		self.register_rpc("qbroker.ping."+self.uuid, self._reply_ping)
+		self.register_rpc("qbroker.ping."+self.app, self._reply_ping)
 
 		yield from self._create_conn()
 		yield from self.alert('qbroker.restart' if restart else 'qbroker.start', uuid=self.uuid, app=self.app, args=args)
@@ -248,6 +249,11 @@ class Unit(object, metaclass=SyncFuncs):
 		return self.unregister_rpc(fn, _async=True, _alert=True)
 
 	def _alert_ping(self,msg):
+		if isinstance(msg,Mapping):
+			if msg.get('app',self.app) != self.app:
+				return
+			if msg.get('uuid',self.uuid) != self.uuid:
+				return
 		return dict(
 			app=self.app,
 			uuid=self.uuid,
