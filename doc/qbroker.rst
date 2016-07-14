@@ -129,7 +129,7 @@ Meta information about the message. This is stored in the AMQP header.
 
 * content-type
 
-  application/json
+  application/json, or equivalent.
 
 
 body
@@ -137,50 +137,5 @@ body
 
 The actual request or response payload. Usually another dict.
 
-The contents are message specific.
-
-error
------
-
-If there was an error processing a request, this element encodes relevant
-information, possibly including a stack trace.
-
-* status
-
-  One of "ok", "warn", "error" or "fail".
-
-  * ok
-
-    There is no problem.
-	
-	This is typically used to cancel an error state on a message board
-    or similar.
-
-  * warn
-
-    Some problem has been encountered and fixed. The request was processed.
-
-  * error
-
-    There is a problem. Retrying may or may not exhibit the same error.
-	(External connection got dropped, database unavailable, …)
-
-  * fail
-
-	There is a problem which can't be fixed without intervention. (Message
-	without required content, wrong protocol version, host not found …)
-    
-* id
-
-  A unique identifier for the type of error encountered.
-
-* part
-
-  A unique identified for the subsystem that encountered an error.
-
-* message
-
-  Something human-readable. Any specific (status,id,part) combination should
-  result in the exact same error message (disregarding memory addresses and
-  timestamps).
+The contents are specific to the message and its encoding.
 
