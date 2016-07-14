@@ -122,15 +122,19 @@ class Connection(object):
 
 			reply_to = getattr(msg, 'reply_to',None)
 			if reply_to:
-				reply = msg.make_response()
 				try:
-					reply.data = (yield from rpc.run(*a,**k))
+					data = (yield from rpc.run(*a,**k))
 				except Exception as exc:
+					reply = msg.make_response()
 					logger.exception("error on alert %s: %s", envelope.delivery_tag, body)
 					reply.set_error(exc, rpc.name,"reply")
-				reply,props = reply.dump(self)
-				reply = json.dumps(reply)
-				yield from self.reply.channel.publish(reply, self.reply.exchange, reply_to, properties=props)
+				else:
+					if data is not None:
+						reply = msg.make_response()
+						reply.data = data
+						reply,props = reply.dump(self)
+						reply = json.dumps(reply)
+						yield from self.reply.channel.publish(reply, self.reply.exchange, reply_to, properties=props)
 			else:
 				try:
 					yield from rpc.run(*a,**k)

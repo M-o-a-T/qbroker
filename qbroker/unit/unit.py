@@ -17,7 +17,7 @@ import asyncio
 from ..util import uuidstr, combine_dict
 from ..util.sync import SyncFuncs
 from .msg import RequestMsg,PollMsg,AlertMsg
-from .rpc import CC_MSG
+from .rpc import CC_MSG,CC_DATA
 from . import DEFAULT_CONFIG
 from collections.abc import Mapping
 
@@ -65,8 +65,8 @@ class Unit(object, metaclass=SyncFuncs):
 		if self.uuid is None:
 			self.uuid = uuidstr()
 
-		self.register_alert("qbroker.ping",self._alert_ping)
-		self.register_rpc("qbroker.ping."+self.uuid, self._reply_ping)
+		self.register_alert("qbroker.ping",self._alert_ping, call_conv=CC_DATA)
+		self.register_rpc("qbroker.ping._uuid."+self.uuid, self._reply_ping)
 		self.register_rpc("qbroker.ping."+self.app, self._reply_ping)
 
 		yield from self._create_conn()

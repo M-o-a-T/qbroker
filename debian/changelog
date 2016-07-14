@@ -1,3 +1,11 @@
+qbroker (0.8.5-1) unstable; urgency=medium
+
+  * Allow alert replies to not be sent.
+  * Enhance list-servers to fetch registrations.
+  * Create an extra namespace for UUID-based directed pings.
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Thu, 14 Jul 2016 11:28:59 +0200
+
 qbroker (0.8.4-1) unstable; urgency=medium
 
   * Register the app name with "ping"
