@@ -24,20 +24,26 @@ logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 u=Unit("test.client", **load_cfg("test.cfg")['config'])
 
 @asyncio.coroutine
-def example():
+def example(type="example.hello",content="Fred"):
 	rc = 0
 	yield from u.start(*sys.argv)
 	yield from asyncio.sleep(0.2) # allow monitor to attach
+	if content is None:
+		content = ''
+	elif content == '-':
+		content = sys.stdin.read()
 	try:
-		res = (yield from u.rpc("example.hello","Fred" if len(sys.argv) < 2 else sys.argv[1]))
+		res = (yield from u.rpc(type, _data=content))
 		print(res)
 	except Exception:
 		rc = 2
 	finally:
 		yield from u.stop(rc)
 
-def main():
+def main(type=None, content=None):
 	loop = asyncio.get_event_loop()
-	loop.run_until_complete(example())
-main()
+	loop.run_until_complete(example(type,content))
+
+if __name__ == '__main__':
+	main(*sys.argv[1:])
 
