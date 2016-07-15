@@ -17,7 +17,7 @@ import pytest
 import os
 import asyncio
 from qbroker.unit import make_unit as unit,Unit, CC_DICT,CC_DATA,CC_MSG
-from qbroker.unit.msg import ReturnedError,AlertMsg
+from qbroker.unit.msg import MsgError,AlertMsg
 from qbroker.util.tests import load_cfg
 import unittest
 from unittest.mock import Mock
@@ -61,11 +61,11 @@ def test_rpc_basic(unit1, unit2, loop):
 	assert res == "foo one"
 	res = (yield from unit1.rpc("my.call", "two"))
 	assert res == "foo two"
-	with pytest.raises(ReturnedError):
+	with pytest.raises(MsgError):
 		res = (yield from unit1.rpc("my.call", x="two"))
 	res = (yield from unit1.rpc("my.call.x", x="three"))
 	assert res == "foo three"
-	with pytest.raises(ReturnedError):
+	with pytest.raises(MsgError):
 		res = (yield from unit1.rpc("my.call", y="duh"))
 	res = (yield from unit1.rpc("my.call.m", x="four"))
 	assert res == "foo four"
@@ -82,7 +82,7 @@ def test_rpc_unencoded(unit1, unit2, loop):
 	try:
 		r = unit2.rpc("my.call")
 		r = (yield from asyncio.wait_for(r, timeout=0.2, loop=loop))
-	except ReturnedError as exc:
+	except MsgError as exc:
 		assert False,"should not reply"
 	except asyncio.TimeoutError:
 		pass
@@ -240,7 +240,7 @@ def test_alert_error(unit1, unit2, loop):
 
 	def recv2(msg):
 		msg.raise_if_error()
-	with pytest.raises(ReturnedError):
+	with pytest.raises(MsgError):
 		yield from unit2.alert("my.error1", callback=recv2, timeout=0.2)
 
 @pytest.mark.run_loop
@@ -266,8 +266,8 @@ def test_rpc_bad_params(unit1, unit2, loop):
 	yield from unit1.register_rpc_async("my.call",call_me, call_conv=CC_DATA)
 	try:
 		res = (yield from unit2.rpc("my.call", x="two"))
-	except ReturnedError as exc:
-		assert exc.error.cls == "TypeError"
+	except MsgError as exc:
+		assert exc.cls == "TypeError"
 		assert "convert" in str(exc)
 	else:
 		assert False,"exception not called"
