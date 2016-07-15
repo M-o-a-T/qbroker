@@ -1,3 +1,9 @@
+qbroker (0.8.5-2) unstable; urgency=medium
+
+  * Improve error reporting
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Fri, 15 Jul 2016 10:47:08 +0200
+
 qbroker (0.8.5-1) unstable; urgency=medium
 
   * Allow alert replies to not be sent.

@@ -79,15 +79,7 @@ class _MsgPart(object, metaclass=FieldCollect):
 			return False # pragma: no cover
 		return True
 
-class ReturnedError(RuntimeError):
-	def __init__(self,err=None,msg=None):
-		self.error = err
-		self.message = msg
-	
-	def __str__(self): # pragma: no cover
-		return self.error.message
-
-class MsgError(_MsgPart):
+class MsgError(RuntimeError,_MsgPart):
 	fields = "status id part message cls"
 
 	def __init__(self, data=None):
@@ -113,9 +105,12 @@ class MsgError(_MsgPart):
 		obj.message = str(exc)
 		return obj
 
-	def returned_error(self, msg=None):
-		assert not msg or msg.error == self
-		return ReturnedError(self,msg)
+	def __repr__(self):
+		return "%s(%s)" % (self.cls, repr(self.message))
+	def __str__(self):
+		return self.message
+	def __hash__(self):
+		return id(self)
 
 class BaseMsg(_MsgPart):
 	version = 1
@@ -185,7 +180,7 @@ class BaseMsg(_MsgPart):
 
 	def raise_if_error(self):
 		if self.error and self.error.failed:
-			raise self.error.returned_error()
+			raise self.error
 
 class _RequestMsg(BaseMsg):
 	"""A request packet. The remaining fields are data elements."""
