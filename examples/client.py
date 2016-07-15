@@ -20,6 +20,7 @@ from qbroker.util.tests import load_cfg
 from traceback import print_exc
 import logging
 import sys
+import json
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
 u=Unit("test.client", **load_cfg("test.cfg")['config'])
@@ -33,6 +34,10 @@ def example(type="example.hello",content="Fred"):
 		content = ''
 	elif content == '-':
 		content = sys.stdin.read()
+	try:
+		content = json.loads(content)
+	except ValueError:
+		print("Warning: content is not JSON, sending as string", file=sys.stderr)
 	try:
 		res = (yield from u.rpc(type, _data=content))
 		print(res)
