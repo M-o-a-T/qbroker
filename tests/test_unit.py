@@ -187,18 +187,29 @@ def test_alert_no_data(unit1, unit2, loop):
 @pytest.mark.run_loop
 @asyncio.coroutine
 def test_alert_stop(unit1, unit2, loop):
+	ncall = 0
+	nhit = 0
 	@asyncio.coroutine
 	def sleep1():
-		yield from asyncio.sleep(0.1, loop=loop)
+		nonlocal nhit
+		nhit += 1
+		return False
 	@asyncio.coroutine
 	def sleep2():
+		nonlocal nhit
+		nhit += 1
 		yield from asyncio.sleep(0.2, loop=loop)
-	yield from unit1.register_alert_async("my.sleep",sleep1)
-	yield from unit2.register_alert_async("my.sleep",sleep2)
-	def recv(msg):
+		return False
+	yield from unit1.register_alert_async("my.sleep",sleep1, call_conv=CC_DICT)
+	yield from unit2.register_alert_async("my.sleep",sleep2, call_conv=CC_DICT)
+	def recv(*msg,**k):
+		nonlocal ncall
+		ncall += 1
 		raise StopIteration
-	res = (yield from unit2.alert("my.sleep",_data="", callback=recv, timeout=0.15))
+	res = (yield from unit2.alert("my.sleep",_data="", callback=recv, timeout=0.5))
 	assert res == 1
+	assert nhit == 2
+	assert ncall == 1
 
 @pytest.mark.run_loop
 @asyncio.coroutine
@@ -242,14 +253,6 @@ def test_alert_error(unit1, unit2, loop):
 		msg.raise_if_error()
 	with pytest.raises(MsgError):
 		yield from unit2.alert("my.error1", callback=recv2, timeout=0.2)
-
-@pytest.mark.run_loop
-@asyncio.coroutine
-def test_reg_error(unit1):
-	with pytest.raises(AssertionError):
-		yield from unit1.register_rpc("my.call",Mock())
-	with pytest.raises(AssertionError):
-		yield from unit1.register_alert("my.alert",Mock())
 
 @pytest.mark.run_loop
 @asyncio.coroutine

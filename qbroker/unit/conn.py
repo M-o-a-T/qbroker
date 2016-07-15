@@ -18,6 +18,7 @@ import asyncio
 import aioamqp
 import functools
 import json
+from collections.abc import Mapping
 
 from .msg import _RequestMsg,PollMsg,RequestMsg,BaseMsg
 from .rpc import CC_DICT,CC_DATA
@@ -115,6 +116,9 @@ class Connection(object):
 			rpc = self.alerts[msg.name]
 			if rpc.call_conv == CC_DICT:
 				a=(); k=msg.data
+				if not isinstance(k,Mapping):
+					assert k == ''
+					k = {}
 			elif rpc.call_conv == CC_DATA:
 				a=(msg.data,); k={}
 			else:
