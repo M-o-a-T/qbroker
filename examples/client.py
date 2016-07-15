@@ -17,6 +17,7 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 import asyncio
 from qbroker.unit import Unit
 from qbroker.util.tests import load_cfg
+from traceback import print_exc
 import logging
 import sys
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
@@ -36,6 +37,7 @@ def example(type="example.hello",content="Fred"):
 		res = (yield from u.rpc(type, _data=content))
 		print(res)
 	except Exception:
+		print_exc()
 		rc = 2
 	finally:
 		yield from u.stop(rc)
