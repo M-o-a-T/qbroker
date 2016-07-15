@@ -264,14 +264,6 @@ def test_reg_error(unit1):
 
 @pytest.mark.run_loop
 @asyncio.coroutine
-def test_reg_error(unit1):
-	with pytest.raises(AssertionError):
-		yield from unit1.register_rpc("my.call",Mock())
-	with pytest.raises(AssertionError):
-		yield from unit1.register_alert("my.alert",Mock())
-
-@pytest.mark.run_loop
-@asyncio.coroutine
 def test_rpc_bad_params(unit1, unit2, loop):
 	call_me = Mock(side_effect=lambda x: "foo "+x)
 	yield from unit1.register_rpc_async("my.call",call_me, call_conv=CC_DATA)
