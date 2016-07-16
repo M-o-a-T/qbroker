@@ -1,0 +1,11 @@
+language: python
+python:
+  - "3.4"
+services:
+  - rabbitmq
+before_script:
+  - sudo tests/setup_rabbitmq.sh
+install:
+  - "pip install -v -r requirements.txt"
+  - "pip install -v -r requirements_dev.txt"
+script: make test
