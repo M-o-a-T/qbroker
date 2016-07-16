@@ -193,6 +193,7 @@ def test_alert_stop(unit1, unit2, loop):
 	def sleep1():
 		nonlocal nhit
 		nhit += 1
+		yield from asyncio.sleep(0.1, loop=loop)
 		return False
 	@asyncio.coroutine
 	def sleep2():
@@ -202,7 +203,7 @@ def test_alert_stop(unit1, unit2, loop):
 		return False
 	yield from unit1.register_alert_async("my.sleep",sleep1, call_conv=CC_DICT)
 	yield from unit2.register_alert_async("my.sleep",sleep2, call_conv=CC_DICT)
-	def recv(*msg,**k):
+	def recv(msg):
 		nonlocal ncall
 		ncall += 1
 		raise StopIteration
@@ -228,9 +229,9 @@ def test_reg(unit1, unit2, loop):
 	assert res >= 2
 	assert rx == 2
 
-	res = (yield from unit2.rpc("qbroker.ping."+unit1.uuid))
+	res = (yield from unit2.rpc("qbroker.ping._uuid."+unit1.uuid))
 	assert res['app'] == unit1.app
-	assert "qbroker.ping."+unit1.uuid in res['rpc']
+	assert "qbroker.ping._uuid."+unit1.uuid in res['rpc']
 
 @pytest.mark.run_loop
 @asyncio.coroutine

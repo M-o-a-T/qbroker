@@ -34,17 +34,12 @@ def coro_wrapper(proc, *a,**k):
 		This code is responsible for turning whatever callable you pass in
 		into a "yield from"-style coroutine.
 		"""
-	did_call = False
-	if inspect.iscoroutinefunction(proc) or inspect.isgeneratorfunction(proc):
-		proc = proc(*a,**k)
-		did_call = True
+	proc = proc(*a,**k)
 	if hasattr(proc,'__await__'):
 		return (yield from proc.__await__())
 	if inspect.iscoroutine(proc) or inspect.isgenerator(proc):
-		return (yield from proc)
-	if did_call:
-		return proc
-	return proc(*a,**k)
+		proc = (yield from proc)
+	return proc
 
 class RPCservice(object):
 	"""\
