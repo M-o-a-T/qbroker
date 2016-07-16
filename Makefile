@@ -20,3 +20,4 @@ update:
 
 upload pypi:
 	python setup.py sdist upload
+	git tag v$(shell python setup.py -V)
