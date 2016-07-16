@@ -5,7 +5,7 @@ PYTEST:=env PYTHONPATH=$(shell pwd) py.test-3
 
 test: test.cfg
 	@rm -f test.log
-	$(PYTEST) -x
+	python3 setup.py test
 t: test.cfg
 	@rm -f test.log
 	$(PYTEST) -s -x -v

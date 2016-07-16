@@ -18,6 +18,7 @@ import xml.sax.saxutils
 from os.path import join
 import sys
 import os
+from setuptools.command.test import test as TestCommand
 
 def get_version(fname='qbroker/__init__.py'):
     with open(fname) as f:
@@ -42,6 +43,19 @@ def compile_po(path):
 def read(filename):
     text = open(filename,'r').read()
     return xml.sax.saxutils.escape(text)
+
+class PyTest(TestCommand):
+    #user_options = [('pytest-args=', 'a', "Arguments to pass to py.test")]
+
+    def initialize_options(self):
+        TestCommand.initialize_options(self)
+        self.pytest_args = ['--assert=plain']
+
+    def run_tests(self):
+        #import here, cause outside the eggs aren't loaded
+        import pytest
+        errno = pytest.main(self.pytest_args)
+        sys.exit(errno)
 
 long_description = read('README.rst')
 
@@ -70,6 +84,8 @@ setup(name='QBroker',
           'Topic :: Utilities',
       ],
       zip_safe=True,
+      cmdclass = {'test': PyTest},
+
 
       )
 
