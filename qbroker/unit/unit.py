@@ -96,6 +96,9 @@ class Unit(object, metaclass=SyncFuncs):
 	
 	@asyncio.coroutine
 	def stop(self, rc=0):
+		if self.conn is None:
+			return
+
 		yield from self.alert('qbroker.stop', uuid=self.uuid, exitcode=rc)
 
 		c,self.conn = self.conn,None
