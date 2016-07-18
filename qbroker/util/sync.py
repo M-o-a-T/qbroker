@@ -206,7 +206,7 @@ def setup(sync=False,gevent=False):
 		qbroker.loop = asyncio.get_event_loop()
 
 		def make_unit_gevent(*args,**kwargs):
-			return aiogevent.yield_future(asyncio.ensure_future(qbroker.make_unit(*args,**kwargs), loop=qbroker.loop))
+			return aiogevent.yield_future(asyncio.ensure_future(qbroker.make_unit(*args, loop=qbroker.loop, **kwargs), loop=qbroker.loop))
 		qbroker.make_unit_gevent = make_unit_gevent
 
 class SyncFuncs(type):
