@@ -1,3 +1,9 @@
+qbroker (0.8.8-1) unstable; urgency=medium
+
+  * Bad param names.
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Mon, 18 Jul 2016 17:25:29 +0200
+
 qbroker (0.8.7-1) unstable; urgency=medium
 
   * Move gevent-compatible loop to qbroker top.
