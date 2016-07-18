@@ -16,6 +16,7 @@ import unittest
 from functools import partial
 from qbroker.unit import make_unit,Unit
 from qbroker.util.tests import load_cfg
+import qbroker
 from traceback import print_exc
 
 
@@ -28,14 +29,14 @@ class TestPing(unittest.TestCase):
 
     def setUp(self):
         self.cfg = load_cfg("test.cfg")
-        sync.loop.run_until_complete(self.setUp_async())
+        qbroker.loop.run_until_complete(self.setUp_async())
 
     def tearDown(self):
-        sync.loop.run_until_complete(self.tearDown_async())
+        qbroker.loop.run_until_complete(self.tearDown_async())
 
     @asyncio.coroutine
     def setUp_async(self):
-        self.unit = yield from make_unit("test.ping.A", loop=sync.loop, **self.cfg['config'])
+        self.unit = yield from make_unit("test.ping.A", loop=qbroker.loop, **self.cfg['config'])
         yield from self.unit.register_rpc_async(self.pling)
 
     @asyncio.coroutine
@@ -51,12 +52,12 @@ class TestPing(unittest.TestCase):
 
     def test_ping_gevent(self):
         j = gevent.spawn(self._test_ping_gevent)
-        f = aiogevent.wrap_greenlet(j, loop=sync.loop)
-        sync.loop.run_until_complete(f)
+        f = aiogevent.wrap_greenlet(j, loop=qbroker.loop)
+        qbroker.loop.run_until_complete(f)
         j.join()
 
     def _test_ping_gevent(self):
-        u = Unit("test.ping.GEVENT", loop=sync.loop, **self.cfg['config'])
+        u = Unit("test.ping.GEVENT", loop=qbroker.loop, **self.cfg['config'])
         u.start_gevent()
         try:
             plong = u.rpc_gevent("pling", _timeout=1)

@@ -36,8 +36,6 @@ Note that, unlike these functions, native asyncio calls the procedure directly:
 import asyncio
 import qbroker
 
-loop = None
-
 class AioRunner:
 	"""A singleton which supplies a thread for running asyncio tasks.
 
@@ -200,16 +198,15 @@ def setup(sync=False,gevent=False):
 			return AioRunner.run_async(qbroker.make_unit, *args,**kwargs)
 		qbroker.make_unit_sync = make_unit_sync
 	
-	global loop
-	if gevent and not loop:
+	if gevent and not qbroker.loop:
 		global aiogevent
 
 		import aiogevent
 		asyncio.set_event_loop_policy(aiogevent.EventLoopPolicy())
-		loop = asyncio.get_event_loop()
+		qbroker.loop = asyncio.get_event_loop()
 
 		def make_unit_gevent(*a,**k):
-			return aiogevent.yield_future(asyncio.ensure_future(qbroker.make_unit(*args,**kwargs), loop=loop))
+			return aiogevent.yield_future(asyncio.ensure_future(qbroker.make_unit(*args,**kwargs), loop=qbroker.loop))
 		qbroker.make_unit_gevent = make_unit_gevent
 
 class SyncFuncs(type):
@@ -255,9 +252,9 @@ def sync_maker(func):
 def gevent_maker(func):
 	def gevent_func(self, *args, _timeout=None, _async=False, **kwargs):
 		meth = getattr(self, func)
-		f = asyncio.ensure_future(meth(*args,**kwargs), loop=loop)
+		f = asyncio.ensure_future(meth(*args,**kwargs), loop=qbroker.loop)
 		if _timeout is not None:
-			f = asyncio.ensure_future(asyncio.wait_for(f,_timeout,loop=loop), loop=loop)
+			f = asyncio.ensure_future(asyncio.wait_for(f,_timeout,loop=qbroker.loop), loop=qbroker.loop)
 		if _async:
 			return gevent.spawn(aiogevent.yield_future,f)
 		else:
@@ -271,7 +268,7 @@ def await_sync(proc,*a,**k):
 def await_gevent(proc,*a, _loop=None, **k):
 	"""Helper function to wait for an async result from a gevent thread"""
 	if _loop is None:
-		loop = loop
+		_loop = qbroker.loop
 	p = proc(*a,**k)
 	f = asyncio.ensure_future(p, loop=_loop)
 	return aiogevent.yield_future(f, loop=_loop)

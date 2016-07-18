@@ -1,3 +1,9 @@
+qbroker (0.8.7-1) unstable; urgency=medium
+
+  * Move gevent-compatible loop to qbroker top.
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Mon, 18 Jul 2016 17:22:50 +0200
+
 qbroker (0.8.6-1) unstable; urgency=medium
 
   * Improve error reporting
