@@ -15,7 +15,7 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 
 import asyncio
 from ..util import uuidstr, combine_dict
-from ..util.sync import SyncFuncs
+from ..util.sync import SyncFuncs, sync_maker,gevent_maker
 from .msg import RequestMsg,PollMsg,AlertMsg
 from .rpc import CC_MSG,CC_DATA
 from . import DEFAULT_CONFIG
@@ -210,6 +210,8 @@ class Unit(object, metaclass=SyncFuncs):
 				yield from conn.register_rpc(fn)
 			"""
 		return self.register_rpc(*a, _async=True, **kw)
+	register_rpc_sync = sync_maker("register_rpc_async")
+	register_rpc_gevent = gevent_maker("register_rpc_async")
 
 	def register_alert(self, *a, _async=False, **kw):
 		"""Register an alert listener.
@@ -220,6 +222,8 @@ class Unit(object, metaclass=SyncFuncs):
 		"""Register an alert listener.
 		   See register_rpc_async for calling conventions."""
 		return self.register_rpc(*a, _async=True, _alert=True, **kw)
+	register_alert_sync = sync_maker("register_alert_async")
+	register_alert_gevent = gevent_maker("register_alert_async")
 
 	def unregister_rpc(self, fn, _async=False,_alert=False):
 		if not isinstance(fn,str):
@@ -247,9 +251,13 @@ class Unit(object, metaclass=SyncFuncs):
 
 	def unregister_rpc_async(self, fn):
 		return self.unregister_rpc(fn, _async=True)
+	unregister_rpc_sync = sync_maker("unregister_rpc_async")
+	unregister_rpc_gevent = gevent_maker("unregister_rpc_async")
 
 	def unregister_alert_async(self, fn):
 		return self.unregister_rpc(fn, _async=True, _alert=True)
+	unregister_alert_sync = sync_maker("unregister_alert_async")
+	unregister_alert_gevent = gevent_maker("unregister_alert_async")
 
 	def _alert_ping(self,msg):
 		if isinstance(msg,Mapping):
