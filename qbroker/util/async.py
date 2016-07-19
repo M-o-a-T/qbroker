@@ -27,9 +27,11 @@ iscoroutinefunction = getattr(inspect,'iscoroutinefunction', lambda _:False)
 class Main:
 	"""Implement a bare-bones mainloop for asyncio."""
 
-	def __init__(self):
-		self.loop = asyncio.new_event_loop()
-		asyncio.set_event_loop(self.loop)
+	def __init__(self, loop=None):
+		if loop is None:
+			loop = asyncio.new_event_loop()
+			asyncio.set_event_loop(loop)
+		self.loop = loop
 		self._sig = asyncio.Event()
 		self._cleanup = []
 

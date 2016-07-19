@@ -1,3 +1,9 @@
+qbroker (0.8.10-1) unstable; urgency=medium
+
+  * Allow passing a mainloop to qbroker.util.async.Main()
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Tue, 19 Jul 2016 10:24:10 +0200
+
 qbroker (0.8.9-1) unstable; urgency=medium
 
   * make .stop() idempotent
