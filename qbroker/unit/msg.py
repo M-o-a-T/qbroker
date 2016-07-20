@@ -34,6 +34,10 @@ def fmap(s):
 	return r
 
 class FieldCollect(type):
+	"""\
+		A metaclass which coalesces "fields" class attributes from the base
+		classes into one coherent set
+		"""
 	def __new__(meta, name, bases, dct):
 		# Grab all known field names
 		s = set()
@@ -54,8 +58,11 @@ class FieldCollect(type):
 		return res
 
 class _MsgPart(object, metaclass=FieldCollect):
-
+	"""\
+		A message part.
+		"""
 	def dump(self):
+		"""Convert myself to a dict"""
 		obj = {}
 		for f in self.fields:
 			try:
@@ -65,6 +72,7 @@ class _MsgPart(object, metaclass=FieldCollect):
 		return obj
 	
 	def _load(self, props):
+		"""Load myself from a proplist"""
 		for f in self.fields:
 			v = props.headers.get(f,_NOTGIVEN)
 			if v is not _NOTGIVEN:
@@ -80,6 +88,7 @@ class _MsgPart(object, metaclass=FieldCollect):
 		return True
 
 class MsgError(RuntimeError,_MsgPart):
+	"""Proxy for a remote error"""
 	fields = "status id part message cls"
 
 	def __init__(self, data=None):
@@ -89,6 +98,7 @@ class MsgError(RuntimeError,_MsgPart):
 
 	@property
 	def failed(self):
+		"""Is this message really an error?"""
 		if self.status in ('ok','warn'): # pragma: no cover ## XXX TODO
 			return False
 		if self.status in ('error','fail'):
