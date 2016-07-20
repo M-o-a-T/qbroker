@@ -113,11 +113,11 @@ class Connection(object):
 			if isinstance(body,bytes):
 				body = body.decode('utf-8')
 			msg = json.loads(body)
-			msg = BaseMsg.load(msg,properties)
+			msg = BaseMsg.load(msg,envelope,properties)
 			try:
-				rpc = self.alerts[msg.name]
+				rpc = self.alerts[msg.routing_key]
 			except KeyError:
-				n = msg.name
+				n = msg.routing_key
 				while True:
 					i = n.rfind('.')
 					if i < 1:
@@ -175,8 +175,8 @@ class Connection(object):
 			if isinstance(body,bytes):
 				body = body.decode('utf-8')
 			msg = json.loads(body)
-			msg = BaseMsg.load(msg,properties)
-			assert msg.name == rpc.name, (msg.name, rpc.name)
+			msg = BaseMsg.load(msg,envelope,properties)
+			assert msg.routing_key == rpc.name, (msg.routing_key, rpc.name)
 			reply = msg.make_response()
 			try:
 				if rpc.call_conv == CC_DICT:
@@ -206,7 +206,7 @@ class Connection(object):
 			if isinstance(body,bytes):
 				body = body.decode('utf-8')
 			msg = json.loads(body)
-			msg = BaseMsg.load(msg,properties)
+			msg = BaseMsg.load(msg,envelope,properties)
 			f,req = self.replies[msg.correlation_id]
 			try:
 				yield from req.recv_reply(f,msg)
@@ -236,8 +236,8 @@ class Connection(object):
 			f = asyncio.Future(loop=self._loop)
 			id = msg.message_id
 			self.replies[id] = (f,msg)
-		logger.debug("Send %s to %s: %s", msg.name, cfg['exchanges'][msg._exchange], data)
-		yield from getattr(self,msg._exchange).channel.publish(data, cfg['exchanges'][msg._exchange], msg.name, properties=props)
+		logger.debug("Send %s to %s: %s", msg.routing_key, cfg['exchanges'][msg._exchange], data)
+		yield from getattr(self,msg._exchange).channel.publish(data, cfg['exchanges'][msg._exchange], msg.routing_key, properties=props)
 		if timeout is None:
 			return
 		try:

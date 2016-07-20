@@ -154,7 +154,7 @@ class BaseMsg(_MsgPart):
 		self.error = MsgError.build(*a,**k)
 
 	@staticmethod
-	def load(data,props):
+	def load(data,env,props):
 		t = props.type
 		res = _types[t]._load(data,props)
 
@@ -163,6 +163,7 @@ class BaseMsg(_MsgPart):
 			m = getattr(props,ff,_NOTGIVEN)
 			if m is not _NOTGIVEN:
 				setattr(res,ff,m)
+		res.routing_key = env.routing_key
 		return res
 
 	@classmethod
@@ -184,11 +185,11 @@ class BaseMsg(_MsgPart):
 
 class _RequestMsg(BaseMsg):
 	"""A request packet. The remaining fields are data elements."""
-	fields = "name reply-to"
+	fields = "reply-to"
 
-	def __init__(self, _name=None, data=None):
+	def __init__(self, routing_key=None, data=None):
 		super().__init__()
-		self.name = _name
+		self.routing_key = routing_key
 		self.data = data
 
 	def make_response(self, **data):
@@ -204,8 +205,8 @@ class RequestMsg(_RequestMsg):
 	_exchange = "rpc" # lookup key for the exchange name
 	_timer = "rpc" # lookup key for the timeout
 
-	def __init__(self, _name=None, _unit=None, data=None):
-		super().__init__(_name, data)
+	def __init__(self, routing_key=None, _unit=None, data=None):
+		super().__init__(routing_key=routing_key, data=data)
 		if _unit is not None:
 			self.reply_to = _unit.uuid
 
@@ -219,16 +220,16 @@ class AlertMsg(_RequestMsg):
 	type = "alert"
 	_exchange = "alert" # lookup key for the exchange name
 
-	def __init__(self, _name=None, _unit=None, data=None):
-		super().__init__(_name=_name, data=data)
+	def __init__(self, routing_key=None, _unit=None, data=None):
+		super().__init__(routing_key=routing_key, data=data)
 		# do not set reply_to
 
 class PollMsg(AlertMsg):
 	"""An alert which requests replies"""
 	_timer = "poll" # lookup key for the timeout
 
-	def __init__(self, _name=None, _unit=None, callback=None,call_conv=CC_MSG, data=None):
-		super().__init__(_name=_name, _unit=_name, data=data)
+	def __init__(self, routing_key=None, _unit=None, callback=None,call_conv=CC_MSG, data=None):
+		super().__init__(routing_key=routing_key, _unit=_unit, data=data)
 		if _unit is not None:
 			self.reply_to = _unit.uuid
 		self.callback = callback
