@@ -23,7 +23,9 @@ import sys
 import json
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
-u=Unit("test.client", **load_cfg("test.cfg")['config'])
+import os
+cfg = os.environ.get("QBROKER","test.cfg")
+u=Unit("test.client", **load_cfg(cfg)['config'])
 
 @asyncio.coroutine
 def example(type="example.hello",content="Fred"):

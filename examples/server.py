@@ -22,7 +22,9 @@ import logging
 import sys
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
-u=Unit("test.server", **load_cfg("test.cfg")['config'])
+import os
+cfg = os.environ.get("QBROKER","test.cfg")
+u=Unit("test.server", **load_cfg(cfg)['config'])
 
 @u.register_rpc("example.hello", call_conv=CC_DATA)
 @asyncio.coroutine

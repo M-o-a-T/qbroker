@@ -24,10 +24,12 @@ import logging
 import sys
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
-u=Unit("test.client.list_servers", **load_cfg("test.cfg")['config'])
+import os
+cfg = os.environ.get("QBROKER","test.cfg")
+u=Unit("test.client.list_servers", **load_cfg(cfg)['config'])
 
 def cb(data):
-	pprint(data)
+	#pprint(data)
 	f = asyncio.ensure_future(u.rpc('qbroker.ping._uuid.'+data['uuid']))
 	def d(f):
 		try:

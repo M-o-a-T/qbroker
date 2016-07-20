@@ -22,7 +22,9 @@ import sys
 from pprint import pprint
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
-u=Unit("test.ping", **load_cfg("test.cfg")['config'])
+import os
+cfg = os.environ.get("QBROKER","test.cfg")
+u=Unit("test.ping", **load_cfg(cfg)['config'])
 
 @asyncio.coroutine
 def cb(r):
