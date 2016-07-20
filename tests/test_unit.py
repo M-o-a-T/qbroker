@@ -212,9 +212,9 @@ def test_alert_stop(unit1, unit2, loop):
 		ncall += 1
 		raise StopIteration
 	res = (yield from unit2.alert("my.sleep",_data="", callback=recv, timeout=0.5))
-	assert res == 1
-	assert nhit == 2
-	assert ncall == 1
+	assert res == 1, res
+	assert nhit == 2, nhit
+	assert ncall == 1, ncall
 
 @pytest.mark.run_loop
 @asyncio.coroutine
