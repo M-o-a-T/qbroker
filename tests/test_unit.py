@@ -151,16 +151,20 @@ def test_alert_oneway(unit1, unit2, loop):
 	alert_me1 = Mock()
 	alert_me2 = Mock()
 	alert_me3 = Mock()
+	alert_me4 = Mock()
 	yield from unit1.register_alert_async("my.alert1",alert_me1, call_conv=CC_DICT)
 	yield from unit1.register_alert_async("my.alert2",alert_me2, call_conv=CC_DATA)
 	yield from unit1.register_alert_async("my.alert3",alert_me3) # default is CC_MSG
+	yield from unit1.register_alert_async("my.#",alert_me4) # default is CC_MSG
 	yield from unit2.alert("my.alert1",_data={'y':"dud"})
 	yield from unit2.alert("my.alert2",_data={'y':"dud"})
 	yield from unit2.alert("my.alert3",_data={'y':"dud"})
+	yield from unit2.alert("my.alert4.whatever",_data={'z':"dud"})
 	yield from asyncio.sleep(0.1, loop=loop)
 	alert_me1.assert_called_with(y='dud')
 	alert_me2.assert_called_with(dict(y='dud'))
 	alert_me3.assert_called_with(AlertMsg(data=dict(y='dud')))
+	alert_me4.assert_called_with(AlertMsg(data=dict(z='dud')))
 
 @pytest.mark.run_loop
 @asyncio.coroutine

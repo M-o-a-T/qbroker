@@ -1,3 +1,11 @@
+qbroker (0.8.12-1) unstable; urgency=medium
+
+  * Add limited wildcard support for alerts.
+
+    (Intentionally only at the end.)
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Wed, 20 Jul 2016 01:57:44 +0200
+
 qbroker (0.8.11-1) unstable; urgency=medium
 
   * Provide sync+gevent versions of registration functions

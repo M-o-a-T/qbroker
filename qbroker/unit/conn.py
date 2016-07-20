@@ -114,7 +114,21 @@ class Connection(object):
 				body = body.decode('utf-8')
 			msg = json.loads(body)
 			msg = BaseMsg.load(msg,properties)
-			rpc = self.alerts[msg.name]
+			try:
+				rpc = self.alerts[msg.name]
+			except KeyError:
+				n = msg.name
+				while True:
+					i = n.rfind('.')
+					if i < 1:
+						rpc = self.alerts.get('#',None)
+						if rpc is not None:
+							break
+						raise
+					n = n[:i]
+					rpc = self.alerts.get(n+'.#',None)
+					if rpc is not None:
+						break
 			if rpc.call_conv == CC_DICT:
 				a=(); k=msg.data
 				if not isinstance(k,Mapping):
