@@ -35,6 +35,7 @@ class _ch(object):
 
 class Connection(object):
 	amqp = None # connection
+	alert_bc = False
 
 	def __init__(self,unit):
 		self._loop = unit._loop
@@ -268,11 +269,20 @@ class Connection(object):
 
 	@asyncio.coroutine
 	def register_alert(self,rpc):
+		n = rpc.name
+		if rpc.name.endswith('.#'):
+			n = n[:-2]
+		if '#' in n:
+			raise RuntimeError("I won't find that")
+
 		ch = self.alert
 		cfg = self.unit().config['amqp']
 		logger.debug("Chan %s: bind %s %s %s", ch.channel,cfg['exchanges']['alert'], rpc.name, ch.exchange)
 		yield from ch.channel.queue_bind(ch.queue['queue'], ch.exchange, routing_key=rpc.name)
 		self.alerts[rpc.name] = rpc
+
+		if rpc.name.endswith('.#'):
+			self.alert_bc = True
 
 	@asyncio.coroutine
 	def unregister_alert(self,rpc):
