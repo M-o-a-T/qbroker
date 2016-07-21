@@ -3,7 +3,7 @@
 *.pyc
 __pycache__
 /test.log
-/test.cfg
+/*.cfg
 /QBroker.egg-info/
 /dist/
 /build/
