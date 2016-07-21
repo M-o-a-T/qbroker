@@ -19,6 +19,11 @@ from base64 import b64encode
 from collections.abc import Mapping
 from importlib import import_module
 
+import pytz
+UTC = pytz.UTC
+with open("/etc/localtime", 'rb') as tzfile:
+	TZ = pytz.tzfile.build_tzinfo(str('local'), tzfile)
+
 def uuidstr(u=None):
 	if u is None:
 		import uuid
@@ -102,6 +107,13 @@ class _ClassMethodType(object):
 class _StaticMethodType(_ClassMethodType):
 	def __call__(self,*a,**k):
 		return self.__func__(*a,**k)
+
+# Default timeout for the cache.
+def format_dt(value, format='%Y-%m-%d %H:%M:%S'):
+	try:
+		return value.astimezone(TZ).strftime(format)
+	except ValueError: ## naïve time: assume UTC
+		return value.replace(tzinfo=UTC).astimezone(TZ).strftime(format)
 
 def exported_classmethod(_fn=None,**attrs):
 	"""\

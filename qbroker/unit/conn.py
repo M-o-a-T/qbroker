@@ -22,6 +22,7 @@ from collections.abc import Mapping
 
 from .msg import _RequestMsg,PollMsg,RequestMsg,BaseMsg
 from .rpc import CC_DICT,CC_DATA
+from ..codec import get_codec
 from ..util import import_string
 
 import logging
@@ -37,7 +38,11 @@ class Connection(object):
 	amqp = None # connection
 	alert_bc = False
 
-	def __init__(self,unit):
+	def __init__(self,unit,codec=None):
+		if codec is None:
+			codec = 'DEFAULT'
+		if isinstance(codec,str):
+			codec = get_codec(codec)
 		self._loop = unit._loop
 		self.rpcs = {}
 		self.alerts = {}
@@ -51,7 +56,7 @@ class Connection(object):
 		if 'port' in cfg:
 			cfg['port'] = int(cfg['port'])
 		self.cfg = cfg
-		self.mime_type = "application/json"
+		self.codec = codec
 
 	@asyncio.coroutine
 	def connect(self):
@@ -110,8 +115,7 @@ class Connection(object):
 	def _on_alert(self, channel,body,envelope,properties):
 		logger.debug("read alert message %s",envelope.delivery_tag)
 		try:
-			if isinstance(body,bytes):
-				body = body.decode('utf-8')
+			msg = get_codec(properties.content_type).decode(body)
 			msg = json.loads(body)
 			msg = BaseMsg.load(msg,envelope,properties)
 			try:
@@ -153,7 +157,7 @@ class Connection(object):
 					reply = msg.make_response()
 					reply.data = data
 				reply,props = reply.dump(self)
-				reply = json.dumps(reply)
+				reply = self.codec.encode(reply)
 				yield from self.reply.channel.publish(reply, self.reply.exchange, reply_to, properties=props)
 			else:
 				try:
@@ -172,9 +176,7 @@ class Connection(object):
 	def _on_rpc(self, rpc, channel,body,envelope,properties):
 		logger.debug("read rpc message %s",envelope.delivery_tag)
 		try:
-			if isinstance(body,bytes):
-				body = body.decode('utf-8')
-			msg = json.loads(body)
+			msg = get_codec(properties.content_type).decode(body)
 			msg = BaseMsg.load(msg,envelope,properties)
 			assert msg.routing_key == rpc.name, (msg.routing_key, rpc.name)
 			reply = msg.make_response()
@@ -190,7 +192,7 @@ class Connection(object):
 				logger.exception("error on rpc %s: %s", envelope.delivery_tag, body)
 				reply.set_error(exc, rpc.name,"reply")
 			reply,props = reply.dump(self)
-			reply = json.dumps(reply)
+			reply = self.codec.encode(reply)
 			yield from rpc.channel.publish(reply, self.reply.exchange, msg.reply_to, properties=props)
 		except Exception as exc:
 			logger.exception("problem with rpc %s: %s", envelope.delivery_tag, body)
@@ -203,8 +205,7 @@ class Connection(object):
 	def _on_reply(self, channel,body,envelope,properties):
 		logger.debug("read reply message %s",envelope.delivery_tag)
 		try:
-			if isinstance(body,bytes):
-				body = body.decode('utf-8')
+			msg = get_codec(properties.content_type).decode(body)
 			msg = json.loads(body)
 			msg = BaseMsg.load(msg,envelope,properties)
 			f,req = self.replies[msg.correlation_id]
@@ -231,7 +232,7 @@ class Connection(object):
 					timeout = float(timeout)
 		assert isinstance(msg,_RequestMsg)
 		data,props = msg.dump(self)
-		data = json.dumps(data)
+		data = self.codec.encode(data)
 		if timeout is not None:
 			f = asyncio.Future(loop=self._loop)
 			id = msg.message_id

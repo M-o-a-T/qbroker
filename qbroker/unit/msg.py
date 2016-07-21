@@ -148,7 +148,7 @@ class BaseMsg(_MsgPart):
 				setattr(props,fmap(f), m)
 		props.timestamp = int(time())
 		props.user_id = conn.cfg['login']
-		props.content_type = conn.mime_type
+		props.content_type = conn.codec.CODEC
 		props.app_id = conn.unit().uuid
 		if self.error is not None:
 			obj['error'] = self.error.dump()

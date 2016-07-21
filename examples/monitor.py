@@ -49,7 +49,7 @@ class mon:
 	
 	@asyncio.coroutine
 	def callback(self, channel,body,envelope,properties):
-		if properties.content_type == 'application/json':
+		if properties.content_type == 'application/json' or properties.content_type.startswith('application/json+'):
 			body = json.loads(body.decode('utf-8'))
 
 		if self.name == 'alert':

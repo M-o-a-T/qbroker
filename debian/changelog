@@ -1,3 +1,10 @@
+qbroker (0.10.0-1) unstable; urgency=medium
+
+  * Pluggable codecs.
+  * Default: an extensible JSON-based codec that can do datetime et al.
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Thu, 21 Jul 2016 14:18:19 +0200
+
 qbroker (0.9.0-1) unstable; urgency=medium
 
   * Incompatible message format change:
