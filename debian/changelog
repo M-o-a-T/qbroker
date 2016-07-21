@@ -1,3 +1,9 @@
+qbroker (0.10.1-1) unstable; urgency=medium
+
+  * Pass startup args in ping replies.
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Fri, 22 Jul 2016 00:24:19 +0200
+
 qbroker (0.10.0-1) unstable; urgency=medium
 
   * Pluggable codecs.

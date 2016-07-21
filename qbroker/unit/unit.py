@@ -33,6 +33,7 @@ class Unit(object, metaclass=SyncFuncs):
 	conn = None # AMQP receiver
 	uuid = None # my UUID
 	restarting = None
+	args = ()
 
 	def __init__(self, app, *, loop=None, **cfg):
 		"""\
@@ -64,6 +65,8 @@ class Unit(object, metaclass=SyncFuncs):
 
 		if self.uuid is None:
 			self.uuid = uuidstr()
+		if args:
+			self.args = args
 
 		self.register_alert("qbroker.ping",self._alert_ping, call_conv=CC_DATA)
 		self.register_rpc("qbroker.ping._uuid."+self.uuid, self._reply_ping)
@@ -268,11 +271,13 @@ class Unit(object, metaclass=SyncFuncs):
 		return dict(
 			app=self.app,
 			uuid=self.uuid,
+			args=self.args,
 			)
 
 	def _reply_ping(self,msg):
 		return dict(
 			app=self.app,
+			args=self.args,
 			uuid=self.uuid,
 			rpc=list(self.rpc_endpoints.keys()),
 			alert=list(self.alert_endpoints.keys()),
