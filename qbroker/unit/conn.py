@@ -116,7 +116,6 @@ class Connection(object):
 		logger.debug("read alert message %s",envelope.delivery_tag)
 		try:
 			msg = get_codec(properties.content_type).decode(body)
-			msg = json.loads(body)
 			msg = BaseMsg.load(msg,envelope,properties)
 			try:
 				rpc = self.alerts[msg.routing_key]
@@ -206,7 +205,6 @@ class Connection(object):
 		logger.debug("read reply message %s",envelope.delivery_tag)
 		try:
 			msg = get_codec(properties.content_type).decode(body)
-			msg = json.loads(body)
 			msg = BaseMsg.load(msg,envelope,properties)
 			f,req = self.replies[msg.correlation_id]
 			try:
