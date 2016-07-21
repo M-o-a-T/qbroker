@@ -76,6 +76,17 @@ def test_rpc_basic(unit1, unit2, loop):
 
 @pytest.mark.run_loop
 @asyncio.coroutine
+def test_rpc_direct(unit1, unit2, loop):
+	call_me = Mock(side_effect=lambda x: "foo "+x)
+	r1 = (yield from unit1.register_rpc_async("my.call",call_me, call_conv=CC_DATA))
+	res = (yield from unit2.rpc("my.call", "one",_dest=unit1.uuid))
+	assert res == "foo one"
+	t = unit2.rpc("my.call", "No!", _dest=unit2.uuid)
+	with pytest.raises(asyncio.TimeoutError):
+		yield from asyncio.wait_for(t,timeout=0.5,loop=loop)
+
+@pytest.mark.run_loop
+@asyncio.coroutine
 def test_rpc_unencoded(unit1, unit2, loop):
 	call_me = Mock(side_effect=lambda : object())
 	yield from unit1.register_rpc_async("my.call",call_me, call_conv=CC_DICT)
@@ -233,9 +244,9 @@ def test_reg(unit1, unit2, loop):
 	assert res >= 2
 	assert rx == 2
 
-	res = (yield from unit2.rpc("qbroker.ping._uuid."+unit1.uuid))
+	res = (yield from unit2.rpc("qbroker.ping", _dest=unit1.uuid))
 	assert res['app'] == unit1.app
-	assert "qbroker.ping._uuid."+unit1.uuid in res['rpc']
+	assert "qbroker.ping" in res['rpc'], res['rpc']
 
 @pytest.mark.run_loop
 @asyncio.coroutine

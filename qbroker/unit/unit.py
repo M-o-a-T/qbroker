@@ -69,7 +69,7 @@ class Unit(object, metaclass=SyncFuncs):
 			self.args = args
 
 		self.register_alert("qbroker.ping",self._alert_ping, call_conv=CC_DATA)
-		self.register_rpc("qbroker.ping._uuid."+self.uuid, self._reply_ping)
+		self.register_rpc("qbroker.ping", self._reply_ping) # usually used w/ directed requests
 		self.register_rpc("qbroker.ping."+self.app, self._reply_ping)
 
 		yield from self._create_conn()
@@ -115,7 +115,7 @@ class Unit(object, metaclass=SyncFuncs):
 	## client
 
 	@asyncio.coroutine
-	def rpc(self,name, _data=None, **data):
+	def rpc(self,name, _data=None, *, _dest=None, **data):
 		"""Send a RPC request.
 		Returns the response. 
 		"""
@@ -123,12 +123,14 @@ class Unit(object, metaclass=SyncFuncs):
 			assert not data
 			data = _data
 		msg = RequestMsg(name, self, data)
-		res = (yield from self.conn.call(msg))
+		if _dest is not None:
+			_dest = 'qbroker.uuid.'+_dest
+		res = (yield from self.conn.call(msg,dest=_dest))
 		res.raise_if_error()
 		return res.data
 
 	@asyncio.coroutine
-	def alert(self,name, _data=None, *, timeout=None,callback=None,call_conv=CC_MSG, **data):
+	def alert(self,name, _data=None, *, _dest=None, timeout=None,callback=None,call_conv=CC_MSG, **data):
 		"""Send a broadcast alert.
 		If @callback is not None, call on each response until the time runs out
 		"""
@@ -139,7 +141,9 @@ class Unit(object, metaclass=SyncFuncs):
 			msg = PollMsg(name, self, data=data, callback=callback,call_conv=call_conv)
 		else:
 			msg = AlertMsg(name, self, data=data)
-		res = (yield from self.conn.call(msg, timeout=timeout))
+		if _dest is not None:
+			_dest = 'qbroker.uuid.'+_dest
+		res = (yield from self.conn.call(msg, dest=_dest, timeout=timeout))
 		return res
 		
 	## server

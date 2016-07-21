@@ -28,6 +28,8 @@ logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 import os
 cfg = os.environ.get("QBROKER","test.cfg")
 u=Unit("qbroker.monitor", **load_cfg(cfg)['config'])
+cf=u.config['amqp']['server']
+print(cf['host'],cf['virtualhost'])
 
 channels = {'alert':'topic', 'rpc':'topic', 'reply':'direct'}
 

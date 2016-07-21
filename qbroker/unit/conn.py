@@ -108,7 +108,7 @@ class Connection(object):
 		u = self.unit()
 		# See doc/qbroker.rst
 		yield from self._setup_one("alert",'topic', self._on_alert, u.uuid)
-		yield from self._setup_one("rpc",'topic')
+		yield from self._setup_one("rpc",'topic', self._on_drpc, u.uuid, 'qbroker.uuid.'+u.uuid)
 		yield from self._setup_one("reply",'direct', self._on_reply, u.uuid, u.uuid)
 
 	@asyncio.coroutine
@@ -171,13 +171,22 @@ class Connection(object):
 			logger.debug("ack rpc %s",envelope.delivery_tag)
 			yield from self.alert.channel.basic_client_ack(envelope.delivery_tag)
 
+	def _on_drpc(self, channel,body,envelope,properties):
+		logger.debug("read rpc message %s",envelope.delivery_tag)
+		try:
+			msg = get_codec(properties.content_type).decode(body)
+			msg = BaseMsg.load(msg,envelope,properties)
+			rpc = self.rpcs[msg.routing_key]
+			return (yield from self._on_rpc(rpc, channel,body,envelope,properties))
+		except Exception as exc:
+			logger.exception("problem with rpc %s: %s", envelope.delivery_tag, body)
+
 	@asyncio.coroutine
 	def _on_rpc(self, rpc, channel,body,envelope,properties):
 		logger.debug("read rpc message %s",envelope.delivery_tag)
 		try:
 			msg = get_codec(properties.content_type).decode(body)
 			msg = BaseMsg.load(msg,envelope,properties)
-			assert msg.routing_key == rpc.name, (msg.routing_key, rpc.name)
 			reply = msg.make_response()
 			try:
 				if rpc.call_conv == CC_DICT:
@@ -220,7 +229,9 @@ class Connection(object):
 			yield from self.reply.channel.basic_client_ack(envelope.delivery_tag)
 
 	@asyncio.coroutine
-	def call(self,msg, timeout=None):
+	def call(self,msg, timeout=None, dest=None):
+		if dest is None:
+			dest = msg.routing_key
 		cfg = self.unit().config['amqp']
 		if timeout is None:
 			tn = getattr(msg,'_timer',None)
@@ -235,8 +246,8 @@ class Connection(object):
 			f = asyncio.Future(loop=self._loop)
 			id = msg.message_id
 			self.replies[id] = (f,msg)
-		logger.debug("Send %s to %s: %s", msg.routing_key, cfg['exchanges'][msg._exchange], data)
-		yield from getattr(self,msg._exchange).channel.publish(data, cfg['exchanges'][msg._exchange], msg.routing_key, properties=props)
+		logger.debug("Send %s to %s: %s", dest, cfg['exchanges'][msg._exchange], data)
+		yield from getattr(self,msg._exchange).channel.publish(data, cfg['exchanges'][msg._exchange], dest, properties=props)
 		if timeout is None:
 			return
 		try:
@@ -250,20 +261,22 @@ class Connection(object):
 		return f.result()
 		
 	@asyncio.coroutine
-	def register_rpc(self,rpc):
+	def register_rpc(self,rpc, callback=None):
 		ch = self.rpc
 		cfg = self.unit().config['amqp']
+		assert rpc.name not in self.rpcs
 		assert rpc.queue is None
 		rpc.channel = (yield from self.amqp.channel())
 		rpc.queue = (yield from rpc.channel.queue_declare(cfg['queues']['rpc']+rpc.name.replace('.','_'), auto_delete=True, passive=False))
 		logger.debug("Chan %s: bind %s %s %s", ch.channel,cfg['exchanges']['rpc'], rpc.name, rpc.queue['queue'])
 		yield from rpc.channel.queue_bind(rpc.queue['queue'], cfg['exchanges']['rpc'], routing_key=rpc.name)
-		self.rpcs[rpc.uuid] = rpc
+		self.rpcs[rpc.name] = rpc
 
 		yield from rpc.channel.basic_qos(prefetch_count=1,prefetch_size=0,connection_global=False)
 		logger.debug("Chan %s: read %s", rpc.channel,rpc.queue['queue'])
-		callback=functools.partial(self._on_rpc,rpc)
-		callback._is_coroutine = True
+		if callback is None:
+			callback = functools.partial(self._on_rpc,rpc)
+			callback._is_coroutine = True
 		yield from rpc.channel.basic_consume(queue_name=rpc.queue['queue'], callback=callback, consumer_tag=rpc.uuid)
 
 	@asyncio.coroutine
@@ -273,7 +286,7 @@ class Connection(object):
 		if isinstance(rpc,str):
 			rpc = self.rpcs.pop(rpc)
 		else:
-			del self.rpcs[rpc.uuid]
+			del self.rpcs[rpc.name]
 		assert rpc.queue is not None
 		logger.debug("Chan %s: unbind %s %s %s", ch.channel,cfg['exchanges']['rpc'], rpc.name, rpc.queue['queue'])
 		yield from rpc.channel.queue_unbind(rpc.queue['queue'], cfg['exchanges']['rpc'], routing_key=rpc.name)
@@ -282,6 +295,7 @@ class Connection(object):
 
 	@asyncio.coroutine
 	def register_alert(self,rpc):
+		assert rpc.name not in self.alerts
 		n = rpc.name
 		if rpc.name.endswith('.#'):
 			n = n[:-2]

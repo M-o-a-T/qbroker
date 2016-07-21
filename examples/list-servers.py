@@ -29,7 +29,7 @@ cfg = os.environ.get("QBROKER","test.cfg")
 u=Unit("test.client.list_servers", **load_cfg(cfg)['config'])
 
 def cb(data):
-	#pprint(data)
+	pprint(data)
 	f = asyncio.ensure_future(u.rpc('qbroker.ping._uuid.'+data['uuid']))
 	def d(f):
 		try:

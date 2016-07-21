@@ -173,7 +173,9 @@ class BaseMsg(_MsgPart):
 			m = getattr(props,ff,_NOTGIVEN)
 			if m is not _NOTGIVEN:
 				setattr(res,ff,m)
-		res.routing_key = env.routing_key
+		rk = getattr(res,'routing_key',None)
+		if not rk:
+			res.routing_key = env.routing_key
 		return res
 
 	@classmethod
@@ -195,7 +197,7 @@ class BaseMsg(_MsgPart):
 
 class _RequestMsg(BaseMsg):
 	"""A request packet. The remaining fields are data elements."""
-	fields = "reply-to"
+	fields = "routing-key reply-to"
 
 	def __init__(self, routing_key=None, data=None):
 		super().__init__()
