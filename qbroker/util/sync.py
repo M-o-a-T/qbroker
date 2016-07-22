@@ -36,6 +36,10 @@ Note that, unlike these functions, native asyncio calls the procedure directly:
 import asyncio
 import qbroker
 
+# overwritten by setup(), if applicable
+aiogevent = None
+threading = None
+
 class AioRunner:
 	"""A singleton which supplies a thread for running asyncio tasks.
 
@@ -186,6 +190,23 @@ class AioRunner:
 			return fx.result()
 
 def setup(sync=False,gevent=False):
+	if gevent and not qbroker.loop:
+		## You get spurious errors if the core threading module is imported
+		## before monkeypatching.
+		if 'threading' in sys.modules:
+			raise Exception('The ‘threading’ module was loaded before patching for gevent')
+		import gevent.monkey
+		gevent.monkey.patch_all()
+
+		global aiogevent
+		import aiogevent
+		asyncio.set_event_loop_policy(aiogevent.EventLoopPolicy())
+		qbroker.loop = asyncio.get_event_loop()
+
+		def make_unit_gevent(*args,**kwargs):
+			return aiogevent.yield_future(asyncio.ensure_future(qbroker.make_unit(*args, loop=qbroker.loop, **kwargs), loop=qbroker.loop))
+		qbroker.make_unit_gevent = make_unit_gevent
+
 	global AioRunner
 	if sync and isinstance(AioRunner,type):
 		# The class is at top level when not in use, so you can use pydoc on it.
@@ -198,17 +219,6 @@ def setup(sync=False,gevent=False):
 			return AioRunner.run_async(qbroker.make_unit, *args,**kwargs)
 		qbroker.make_unit_sync = make_unit_sync
 	
-	if gevent and not qbroker.loop:
-		global aiogevent
-
-		import aiogevent
-		asyncio.set_event_loop_policy(aiogevent.EventLoopPolicy())
-		qbroker.loop = asyncio.get_event_loop()
-
-		def make_unit_gevent(*args,**kwargs):
-			return aiogevent.yield_future(asyncio.ensure_future(qbroker.make_unit(*args, loop=qbroker.loop, **kwargs), loop=qbroker.loop))
-		qbroker.make_unit_gevent = make_unit_gevent
-
 class SyncFuncs(type):
 	""" A metaclass which adds synchronous version of coroutines.
 
