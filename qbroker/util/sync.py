@@ -39,6 +39,7 @@ import sys
 # overwritten by setup(), if applicable
 aiogevent = None
 threading = None
+asyncio = None
 
 class AioRunner:
 	"""A singleton which supplies a thread for running asyncio tasks.
@@ -239,6 +240,11 @@ class SyncFuncs(type):
 	"""
 	def __new__(cls, clsname, bases, dct, **kwargs):
 		new_dct = {}
+
+		global asyncio
+		if asyncio is None:
+			import asyncio
+
 		for name,val in dct.items():
 			# Make a sync version of all coroutine functions
 			if asyncio.iscoroutinefunction(val):
