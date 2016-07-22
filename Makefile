@@ -18,6 +18,9 @@ test.cfg:
 update:
 	@sh utils/update_boilerplate
 
-upload pypi:
+pypi:
 	python3 setup.py sdist upload
 	git tag v$(shell python3 setup.py -V)
+
+upload:	pypi
+	git push-all --tags
