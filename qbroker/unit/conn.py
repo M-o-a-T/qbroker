@@ -301,7 +301,7 @@ class Connection(object):
 		n = rpc.name
 		if rpc.name.endswith('.#'):
 			n = n[:-2]
-		if '#' in n:
+		if len(n) > 1 and '#' in n:
 			raise RuntimeError("I won't find that")
 
 		ch = self.alert
