@@ -1,3 +1,11 @@
+qbroker (0.11.2-1) unstable; urgency=medium
+
+  * Use bytes as the external codec interface.
+
+    This avoids strange UTF-8 problems.
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Fri, 22 Jul 2016 12:57:10 +0200
+
 qbroker (0.11.1-1) unstable; urgency=medium
 
   * Repair previous changes
