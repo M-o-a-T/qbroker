@@ -19,5 +19,5 @@ update:
 	@sh utils/update_boilerplate
 
 upload pypi:
-	python setup.py sdist upload
-	git tag v$(shell python setup.py -V)
+	python3 setup.py sdist upload
+	git tag v$(shell python3 setup.py -V)
