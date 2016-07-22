@@ -28,10 +28,16 @@ cfg = os.environ.get("QBROKER","test.cfg")
 u=Unit("test.client", **load_cfg(cfg)['config'])
 
 @asyncio.coroutine
-def example(type="example.hello",content="Fred"):
+def example(type="example.hello",content=""):
 	rc = 0
 	yield from u.start(*sys.argv)
 	yield from asyncio.sleep(0.2) # allow monitor to attach
+	i = type.find('::')
+	if i > 0:
+		dest = type[i+2:]
+		type = type[:i]
+	else:
+		dest = None
 	if content is None:
 		content = ''
 	elif content == '-':
@@ -41,7 +47,7 @@ def example(type="example.hello",content="Fred"):
 	except ValueError:
 		print("Warning: content is not JSON, sending as string", file=sys.stderr)
 	try:
-		res = (yield from u.rpc(type, _data=content))
+		res = (yield from u.rpc(type, _data=content, _dest=dest))
 		print(res)
 	except Exception:
 		print_exc()
