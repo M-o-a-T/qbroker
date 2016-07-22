@@ -113,10 +113,11 @@ Meta information about the message. This is stored in the AMQP header.
 
   in requests, the routing key with which replies should be sent.
 
-* headers.name
+* headers.routing-key
 
   A dotted name, like "qbroker.info", which identifies the message destination.
-  Present in requests and alerts. Matches the routing key.
+  Present in requests and alerts. Usually matches the message's actual routing
+  key, but may not.
 
 * correlation-id
 
@@ -129,8 +130,18 @@ Meta information about the message. This is stored in the AMQP header.
 
 * content-type
 
-  application/json, or equivalent.
+  `QBroker` supports pluggable codecs.
 
+  There is no negotiation WRT which codec to use.
+
+  * application/json
+
+    Your basic dumb JSON.
+
+  * application/json+obj
+
+    A JSON variant which can encode select Python objects. See
+    `qbroker.codec.json_obj` on how to encode your own objects.
 
 body
 ----
@@ -138,4 +149,27 @@ body
 The actual request or response payload. Usually another dict.
 
 The contents are specific to the message and its encoding.
+
+Message destinations
+--------------------
+
+The message's routing key usually matches the queue's, as all destinations
+are supposed to be equal, i.e. a RPC request of type "foo.bar" should be
+understood and processed equally by all processes which listen to that
+queue.
+
+Since the real world frequently is more complicated, `QBroker` supports
+specialized routing keys. Specifically:
+
+* qbroker.ping
+
+  Read by all instances.
+
+* qbroker.uuid.INSTANCE_UUID
+
+  Read by exactly one instance.
+
+* qbroker.app.APP.NAME
+
+  Read by all instances with that exact app name.
 

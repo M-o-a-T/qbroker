@@ -70,7 +70,7 @@ class Unit(object, metaclass=SyncFuncs):
 
 		self.register_alert("qbroker.ping",self._alert_ping, call_conv=CC_DATA)
 		self.register_rpc("qbroker.ping", self._reply_ping) # usually used w/ directed requests
-		self.register_rpc("qbroker.ping."+self.app, self._reply_ping)
+		self.register_rpc("qbroker.app."+self.app, self._reply_ping) # app-specific destination
 
 		yield from self._create_conn()
 		yield from self.alert('qbroker.restart' if restart else 'qbroker.start', uuid=self.uuid, app=self.app, args=args)

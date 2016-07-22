@@ -1,3 +1,9 @@
+qbroker (0.11.3-1) unstable; urgency=medium
+
+  * Use qbroker.app.* for app specific anycast, not qbroker.ping.*
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Fri, 22 Jul 2016 13:58:13 +0200
+
 qbroker (0.11.2-1) unstable; urgency=medium
 
   * Use bytes as the external codec interface.
