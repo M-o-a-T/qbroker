@@ -7,6 +7,7 @@ from time import mktime
 from json.encoder import JSONEncoder
 from json.decoder import JSONDecoder
 from qbroker.util import attrdict, TZ,UTC, format_dt
+import base64
 import datetime as dt
 from collections.abc import Mapping
 
@@ -21,6 +22,30 @@ def _reg(cls):
 	type2cls[cls.cls.__name__] = cls
 	name2cls[cls.clsname] = cls
 	return cls
+
+@_reg
+class _binary(object):
+	"""A codec for bytes.
+		Try to convert to an utf-8 string; if not possible, use base64.a85."""
+	cls = bytes
+	clsname = "bin"
+
+	@staticmethod
+	def encode(obj):
+		## the string is purely for human consumption and therefore does not have a time zone
+		try:
+			obj = obj.decode('utf-8',errors='strict')
+		except Exception:
+			return {"b":base64.a85encode(obj).decode('utf-8'), "s":obj.decode('utf-8',errors='ignore')}
+		else:
+			return {"s":obj}
+
+	@staticmethod
+	def decode(b=None,s=None):
+		if b is None:
+			return s.encode('utf-8')
+		else:
+			return base64.a85decode(b)
 
 @_reg
 class _datetime(object):
