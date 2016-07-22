@@ -120,7 +120,7 @@ class Unit(object, metaclass=SyncFuncs):
 		Returns the response. 
 		"""
 		if _data is not None:
-			assert not data
+			assert not data, data
 			data = _data
 		msg = RequestMsg(name, self, data)
 		if _dest is not None:
