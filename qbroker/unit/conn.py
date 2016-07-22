@@ -108,7 +108,7 @@ class Connection(object):
 		u = self.unit()
 		# See doc/qbroker.rst
 		yield from self._setup_one("alert",'topic', self._on_alert, u.uuid)
-		yield from self._setup_one("rpc",'topic', self._on_drpc, u.uuid, 'qbroker.uuid.'+u.uuid)
+		yield from self._setup_one("rpc",'topic', self._on_rpc, u.uuid, 'qbroker.uuid.'+u.uuid)
 		yield from self._setup_one("reply",'direct', self._on_reply, u.uuid, u.uuid)
 
 	@asyncio.coroutine
@@ -171,24 +171,13 @@ class Connection(object):
 			logger.debug("ack rpc %s",envelope.delivery_tag)
 			yield from self.alert.channel.basic_client_ack(envelope.delivery_tag)
 
-	def _on_drpc(self, channel,body,envelope,properties):
+	@asyncio.coroutine
+	def _on_rpc(self, channel,body,envelope,properties):
 		logger.debug("read rpc message %s",envelope.delivery_tag)
 		try:
 			msg = get_codec(properties.content_type).decode(body)
 			msg = BaseMsg.load(msg,envelope,properties)
 			rpc = self.rpcs[msg.routing_key]
-		except Exception as exc:
-			logger.exception("problem with rpc %s: %s", envelope.delivery_tag, body)
-			yield from channel.basic_reject(envelope.delivery_tag)
-		else:
-			return (yield from self._on_rpc(rpc, channel,body,envelope,properties))
-
-	@asyncio.coroutine
-	def _on_rpc(self, rpc, channel,body,envelope,properties):
-		logger.debug("read rpc message %s",envelope.delivery_tag)
-		try:
-			msg = get_codec(properties.content_type).decode(body)
-			msg = BaseMsg.load(msg,envelope,properties)
 			reply = msg.make_response()
 			try:
 				if rpc.call_conv == CC_DICT:
@@ -263,7 +252,7 @@ class Connection(object):
 		return f.result()
 		
 	@asyncio.coroutine
-	def register_rpc(self,rpc, callback=None):
+	def register_rpc(self,rpc):
 		ch = self.rpc
 		cfg = self.unit().config['amqp']
 		assert rpc.name not in self.rpcs
@@ -276,10 +265,7 @@ class Connection(object):
 
 		yield from rpc.channel.basic_qos(prefetch_count=1,prefetch_size=0,connection_global=False)
 		logger.debug("Chan %s: read %s", rpc.channel,rpc.queue['queue'])
-		if callback is None:
-			callback = functools.partial(self._on_rpc,rpc)
-			callback._is_coroutine = True
-		yield from rpc.channel.basic_consume(queue_name=rpc.queue['queue'], callback=callback, consumer_tag=rpc.uuid)
+		yield from rpc.channel.basic_consume(queue_name=rpc.queue['queue'], callback=self._on_rpc, consumer_tag=rpc.uuid)
 
 	@asyncio.coroutine
 	def unregister_rpc(self,rpc):
