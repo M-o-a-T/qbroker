@@ -177,9 +177,11 @@ class Connection(object):
 			msg = get_codec(properties.content_type).decode(body)
 			msg = BaseMsg.load(msg,envelope,properties)
 			rpc = self.rpcs[msg.routing_key]
-			return (yield from self._on_rpc(rpc, channel,body,envelope,properties))
 		except Exception as exc:
 			logger.exception("problem with rpc %s: %s", envelope.delivery_tag, body)
+			yield from channel.basic_reject(envelope.delivery_tag)
+		else:
+			return (yield from self._on_rpc(rpc, channel,body,envelope,properties))
 
 	@asyncio.coroutine
 	def _on_rpc(self, rpc, channel,body,envelope,properties):
@@ -201,13 +203,13 @@ class Connection(object):
 				reply.set_error(exc, rpc.name,"reply")
 			reply,props = reply.dump(self)
 			reply = self.codec.encode(reply)
-			yield from rpc.channel.publish(reply, self.reply.exchange, msg.reply_to, properties=props)
+			yield from channel.publish(reply, self.reply.exchange, msg.reply_to, properties=props)
 		except Exception as exc:
 			logger.exception("problem with rpc %s: %s", envelope.delivery_tag, body)
-			yield from rpc.channel.basic_reject(envelope.delivery_tag)
+			yield from channel.basic_reject(envelope.delivery_tag)
 		else:
 			logger.debug("ack rpc %s",envelope.delivery_tag)
-			yield from rpc.channel.basic_client_ack(envelope.delivery_tag)
+			yield from channel.basic_client_ack(envelope.delivery_tag)
 
 	@asyncio.coroutine
 	def _on_reply(self, channel,body,envelope,properties):
