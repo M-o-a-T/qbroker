@@ -13,6 +13,8 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 ## Thus, please do not remove the next line, or insert any blank lines.
 ##BP
 
+import qbroker
+qbroker.setup(sync=True,gevent=True)
 from setuptools import setup, find_packages
 import xml.sax.saxutils
 from os.path import join

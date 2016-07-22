@@ -33,8 +33,8 @@ Note that, unlike these functions, native asyncio calls the procedure directly:
 """
 # Utility code
 
-import asyncio
 import qbroker
+import sys
 
 # overwritten by setup(), if applicable
 aiogevent = None
@@ -198,6 +198,10 @@ def setup(sync=False,gevent=False):
 		import gevent.monkey
 		gevent.monkey.patch_all()
 
+	global asyncio
+	import asyncio
+
+	if gevent and not qbroker.loop:
 		global aiogevent
 		import aiogevent
 		asyncio.set_event_loop_policy(aiogevent.EventLoopPolicy())

@@ -17,15 +17,18 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 __VERSION__ = (0,11,2)
 
 # Python 3.5 deprecates .async in favor of .ensure_future
-import asyncio
-if not hasattr(asyncio,'ensure_future'):
-	asyncio.ensure_future = asyncio.async
 
-from .unit import Unit, make_unit
-
+# Load all these symbols from setup, because of possible load order conflicts
 def setup(*a,**k):
 	import qbroker.util.sync as sync
-	return sync.setup(*a,**k)
+	sync.setup(*a,**k)
+
+	import asyncio
+	if not hasattr(asyncio,'ensure_future'):
+		asyncio.ensure_future = asyncio.async
+
+	global Unit,make_unit
+	from qbroker.unit import Unit, make_unit
 
 loop = None # set by setup
 # unit_sync() and/or unit_gevent() will be added by qbroker.util.sync.setup()

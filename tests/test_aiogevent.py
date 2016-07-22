@@ -6,7 +6,7 @@ import sys
 import unittest
 import gevent
 import aiogevent
-import qbroker
+import qbroker; qbroker.setup(gevent=True)
 from qbroker.util.sync import await_gevent
 
 # This is not really necessary for QBroker per se.
