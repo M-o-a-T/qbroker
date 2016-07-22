@@ -40,7 +40,7 @@ class Connection(object):
 
 	def __init__(self,unit,codec=None):
 		if codec is None:
-			codec = 'DEFAULT'
+			codec = unit.config['amqp'].get('codec', 'DEFAULT')
 		if isinstance(codec,str):
 			codec = get_codec(codec)
 		self._loop = unit._loop

@@ -1,3 +1,9 @@
+qbroker (0.13.1-1) unstable; urgency=medium
+
+  * Fix specifying a codec
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Fri, 22 Jul 2016 16:50:06 +0200
+
 qbroker (0.12.0-1) unstable; urgency=medium
 
   * Fix wildcard bug
