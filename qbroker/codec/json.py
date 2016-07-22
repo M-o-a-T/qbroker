@@ -23,7 +23,10 @@ class Encoder(JSONEncoder):
 enc = Encoder()
 
 def encode(data,tablespace=None):
-	return enc.encode(data)
+	res = enc.encode(data)
+	if isinstance(res,str):
+		res = res.encode('utf-8')
+	return res
 
 class Decoder(JSONDecoder):
 	pass

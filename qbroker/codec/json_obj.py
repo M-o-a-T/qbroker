@@ -137,7 +137,10 @@ def encode(data,tablespace=None):
 				main.add(d)
 		except (TypeError,KeyError,AttributeError):
 			pass
-	return Encoder(tablespace,main).encode(data)
+	res = Encoder(tablespace,main).encode(data)
+	if isinstance(res,str):
+		res = res.encode('utf-8')
+	return res
 
 class Decoder(JSONDecoder):
 	def __init__(self, proxy,tablespace):
