@@ -29,6 +29,7 @@ cfg = os.environ.get("QBROKER","test.cfg")
 u=Unit("test.client.list_servers", **load_cfg(cfg)['config'])
 
 def cb(data):
+	data['_broadcast']=True
 	pprint(data)
 	f = asyncio.ensure_future(u.rpc('qbroker.ping', _dest=data['uuid']))
 	def d(f):
