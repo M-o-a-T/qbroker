@@ -71,8 +71,12 @@ def test_rpc_basic(unit1, unit2, loop):
 	assert res == "foo four"
 	yield from unit1.unregister_rpc_async(r1)
 	t = unit1.rpc("my.call", "No!")
-	with pytest.raises(asyncio.TimeoutError):
+	try:
 		yield from asyncio.wait_for(t,timeout=0.5,loop=loop)
+	except asyncio.TimeoutError:
+		pass
+	except MsgError as exc:
+		assert exc.cls == "DeadLettered"
 
 @pytest.mark.run_loop
 @asyncio.coroutine
@@ -290,6 +294,20 @@ def test_rpc_bad_params(unit1, unit2, loop):
 		assert "convert" in str(exc)
 	else:
 		assert False,"exception not called"
+	
+@pytest.mark.run_loop
+@asyncio.coroutine
+def test_rpc_unroutable(unit1, unit2, loop):
+	call_me = Mock(side_effect=lambda x: "foo "+x)
+	yield from unit1.register_rpc_async("my.call",call_me, call_conv=CC_DATA)
+	try:
+		res = (yield from unit2.rpc("my.non_routed.call"))
+	except MsgError as exc:
+		assert exc.cls == "DeadLettered"
+		assert 'rpc' == str(exc), str(exc)
+	else:
+		assert False,"exception not called"
+	assert call_me.call_count == 0
 	
 def test_reg_sync(loop):
 	cfg = load_cfg("test.cfg")['config']

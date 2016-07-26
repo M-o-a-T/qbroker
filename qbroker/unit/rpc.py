@@ -49,15 +49,18 @@ class RPCservice(object):
 	is_alert = None
 	call_conv = None
 	durable = False
+	ttl = None
 
-	def __init__(self, fn,name=None, call_conv=CC_MSG, durable=False):
+	def __init__(self, fn,name=None, call_conv=CC_MSG, durable=None, ttl=None):
 		if name is None:
 			name = fn.__module__+'.'+fn.__name__
 		self.fn = fn
 		self.name = name
 		self.call_conv = call_conv
-		self.durable = durable
+		self.durable = bool(durable)
 		self.uuid = uuidstr()
+		if ttl is not None:
+			self.ttl = ttl
 	
 	@asyncio.coroutine
 	def run(self, *a,**k):

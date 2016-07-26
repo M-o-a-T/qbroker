@@ -51,7 +51,10 @@ DEFAULT_CONFIG=dict(
 			alert='alert_',# plus the unit UUID. Nonpersistent.
 			rpc='rpc_',	# plus the command name. Persistent.
 			reply='reply_',# plus the unit UUID
-			dead='dead',   # no add-on. Persistent. No TTL here!
+			dead='dead_',   # no add-on. Persistent. No TTL here!
+		),
+		handlers=dict(
+			dead=False, # add a handler for dead messages
 		),
 		ttl=dict(
 			rpc=10,
