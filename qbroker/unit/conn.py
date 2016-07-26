@@ -269,7 +269,7 @@ class Connection(object):
 		assert rpc.name not in self.rpcs
 		assert rpc.queue is None
 		rpc.channel = (yield from self.amqp.channel())
-		rpc.queue = (yield from rpc.channel.queue_declare(cfg['queues']['rpc']+rpc.name.replace('.','_'), auto_delete=True, passive=False))
+		rpc.queue = (yield from rpc.channel.queue_declare(cfg['queues']['rpc']+rpc.name.replace('.','_'), auto_delete=not rpc.durable, passive=False))
 		logger.debug("Chan %s: bind %s %s %s", ch.channel,cfg['exchanges']['rpc'], rpc.name, rpc.queue['queue'])
 		yield from rpc.channel.queue_bind(rpc.queue['queue'], cfg['exchanges']['rpc'], routing_key=rpc.name)
 		self.rpcs[rpc.name] = rpc

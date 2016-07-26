@@ -148,7 +148,7 @@ class Unit(object, metaclass=SyncFuncs):
 		
 	## server
 
-	def register_rpc(self, *a, _async=False, _alert=False, call_conv=CC_MSG):
+	def register_rpc(self, *a, _async=False, _alert=False, call_conv=CC_MSG, durable=False):
 		"""\
 			Register an RPC listener.
 				
@@ -179,7 +179,7 @@ class Unit(object, metaclass=SyncFuncs):
 					name = fn.__name__
 					name = name.replace('._','.')
 					name = name.replace('_','.')
-				fn = RPCservice(name=name,fn=fn, call_conv=call_conv)
+				fn = RPCservice(name=name,fn=fn, call_conv=call_conv, durable=durable)
 			elif name is None:
 				name = fn.name
 			assert fn.is_alert is None
