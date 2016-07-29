@@ -20,6 +20,7 @@ from .msg import RequestMsg,PollMsg,AlertMsg
 from .rpc import CC_MSG,CC_DATA
 from . import DEFAULT_CONFIG
 from collections.abc import Mapping
+from aioamqp.exceptions import ChannelClosed
 
 import logging
 logger = logging.getLogger(__name__)
@@ -105,7 +106,10 @@ class Unit(object, metaclass=SyncFuncs):
 		if self.conn is None:
 			return
 
-		yield from self.alert('qbroker.stop', uuid=self.uuid, exitcode=rc)
+		try:
+			yield from self.alert('qbroker.stop', uuid=self.uuid, exitcode=rc)
+		except ChannelClosed:
+			pass
 
 		c,self.conn = self.conn,None
 		if c:
@@ -157,7 +161,7 @@ class Unit(object, metaclass=SyncFuncs):
 		
 	## server
 
-	def register_rpc(self, *a, _async=False, _alert=False, call_conv=CC_MSG):
+	def register_rpc(self, *a, _async=False, _alert=False, call_conv=CC_MSG, durable=None,ttl=None):
 		"""\
 			Register an RPC listener.
 				
@@ -188,9 +192,14 @@ class Unit(object, metaclass=SyncFuncs):
 					name = fn.__name__
 					name = name.replace('._','.')
 					name = name.replace('_','.')
-				fn = RPCservice(name=name,fn=fn, call_conv=call_conv)
-			elif name is None:
-				name = fn.name
+				fn = RPCservice(name=name,fn=fn, call_conv=call_conv, durable=durable,ttl=ttl)
+			else:
+				if name is None:
+					name = fn.name
+				if durable is not None:
+					assert durable is fn.durable
+				if ttl is not None:
+					assert ttl == fn.ttl
 			assert fn.is_alert is None
 			if _alert:
 				epl = self.alert_endpoints

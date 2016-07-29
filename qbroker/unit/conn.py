@@ -28,6 +28,9 @@ from ..util import import_string
 import logging
 logger = logging.getLogger(__name__)
 
+class DeadLettered(RuntimeError):
+	pass
+
 class _ch(object):
 	"""Helper object"""
 	channel = None
@@ -72,7 +75,7 @@ class Connection(object):
 		logger.debug("Connected %s",self)
 
 	@asyncio.coroutine
-	def _setup_one(self,name,typ,callback=None, q=None, route_key=None, exclusive=None):
+	def _setup_one(self,name,typ,callback=None, q=None, route_key=None, exclusive=None, alt=None):
 		"""\
 			Register a channel. Internal helper.
 			"""
@@ -86,17 +89,26 @@ class Connection(object):
 		logger.debug("Chan %s: exchange %s", ch.channel,cfg['exchanges'][name])
 		if exclusive is None:
 			exclusive = (q is not None)
-		yield from ch.channel.exchange_declare(cfg['exchanges'][name], typ, auto_delete=False, passive=False)
+		d = {}
+		if alt is not None:
+			d["alternate-exchange"] = cfg['exchanges'][alt]
+		yield from ch.channel.exchange_declare(cfg['exchanges'][name], typ, auto_delete=False, passive=False, arguments=d)
 
 		if q is not None:
 			assert callback is not None
-			ch.queue = (yield from ch.channel.queue_declare(cfg['queues'][name]+q, auto_delete=True, passive=False, exclusive=exclusive))
+			d = {}
+			ttl = cfg['ttl'].get(name,0)
+			if ttl:
+				d["x-dead-letter-exchange"] = cfg['queues']['dead']+q
+				d["x-message-ttl"] = cfg['ttl'][name]
+			ch.queue = (yield from ch.channel.queue_declare(cfg['queues'][name]+q, auto_delete=True, passive=False, exclusive=exclusive, arguments=d))
 			yield from ch.channel.basic_qos(prefetch_count=1,prefetch_size=0,connection_global=False)
 			logger.debug("Chan %s: read %s", ch.channel,cfg['queues'][name]+q)
 			yield from ch.channel.basic_consume(queue_name=cfg['queues'][name]+q, callback=callback)
 			if route_key is not None:
 				logger.debug("Chan %s: bind %s %s %s", ch.channel,cfg['exchanges'][name], route_key, ch.queue['queue'])
 				yield from ch.channel.queue_bind(ch.queue['queue'], cfg['exchanges'][name], routing_key=route_key)
+				pass
 		else:
 			assert callback is None
 
@@ -108,9 +120,25 @@ class Connection(object):
 		u = self.unit()
 		# See doc/qbroker.rst
 		yield from self._setup_one("alert",'topic', self._on_alert, u.uuid)
-		yield from self._setup_one("rpc",'topic', self._on_rpc, u.uuid, 'qbroker.uuid.'+u.uuid)
+		yield from self._setup_one("rpc",'topic', self._on_drpc, u.uuid, 'qbroker.uuid.'+u.uuid, alt="dead")
 		yield from self._setup_one("reply",'direct', self._on_reply, u.uuid, u.uuid)
+		if u.config['amqp']['handlers']['dead']:
+			yield from self._setup_one("dead",'topic', self._on_dead_rpc, "rpc", exclusive=False, route_key='#')
 
+	@asyncio.coroutine
+	def _on_dead_rpc(self, channel,body,envelope,properties):
+		try:
+			msg = get_codec(properties.content_type).decode(body)
+			msg = BaseMsg.load(msg,envelope,properties)
+			reply = msg.make_response()
+			reply_to = getattr(msg, 'reply_to',None)
+			reply.set_error(DeadLettered(envelope.exchange_name), envelope.routing_key, "reply")
+			reply,props = reply.dump(self)
+			reply = self.codec.encode(reply)
+			yield from self.reply.channel.publish(reply, self.reply.exchange, reply_to, properties=props)
+		finally:
+			yield from channel.basic_client_ack(envelope.delivery_tag)
+		
 	@asyncio.coroutine
 	def _on_alert(self, channel,body,envelope,properties):
 		logger.debug("read alert message %s",envelope.delivery_tag)
@@ -169,7 +197,7 @@ class Connection(object):
 			yield from self.alert.channel.basic_reject(envelope.delivery_tag)
 		else:
 			logger.debug("ack rpc %s",envelope.delivery_tag)
-			yield from self.alert.channel.basic_client_ack(envelope.delivery_tag)
+			yield from channel.basic_client_ack(envelope.delivery_tag)
 
 	@asyncio.coroutine
 	def _on_rpc(self, channel,body,envelope,properties):
@@ -217,7 +245,7 @@ class Connection(object):
 			logger.exception("problem with message %s: %s", envelope.delivery_tag, body)
 		else:
 			logger.debug("ack message %s",envelope.delivery_tag)
-			yield from self.reply.channel.basic_client_ack(envelope.delivery_tag)
+			yield from channel.basic_client_ack(envelope.delivery_tag)
 
 	@asyncio.coroutine
 	def call(self,msg, timeout=None, dest=None):
@@ -258,7 +286,11 @@ class Connection(object):
 		assert rpc.name not in self.rpcs
 		assert rpc.queue is None
 		rpc.channel = (yield from self.amqp.channel())
-		rpc.queue = (yield from rpc.channel.queue_declare(cfg['queues']['rpc']+rpc.name.replace('.','_'), auto_delete=True, passive=False))
+		d = {}
+		if cfg['ttl']['rpc'] or rpc.ttl:
+			d["x-dead-letter-exchange"] = cfg['queues']['dead']+'rpc'
+			d["x-message-ttl"] = rpc.ttl if rpc.ttl else cfg['ttl']['rpc']
+		rpc.queue = (yield from rpc.channel.queue_declare(cfg['queues']['rpc']+rpc.name.replace('.','_'), auto_delete=not rpc.durable, passive=False, arguments=d))
 		logger.debug("Chan %s: bind %s %s %s", ch.channel,cfg['exchanges']['rpc'], rpc.name, rpc.queue['queue'])
 		yield from rpc.channel.queue_bind(rpc.queue['queue'], cfg['exchanges']['rpc'], routing_key=rpc.name)
 		self.rpcs[rpc.name] = rpc

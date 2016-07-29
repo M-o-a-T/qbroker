@@ -1,8 +1,17 @@
-qbroker (0.14.1-1) unstable; urgency=medium
+qbroker (0.15.1-1) unstable; urgency=medium
 
   * Distribute messages according to properties' key, not queue
 
  -- Matthias Urlichs <matthias@urlichs.de>  Sat, 23 Jul 2016 00:44:51 +0200
+
+qbroker (0.15.0-1) unstable; urgency=medium
+
+  * Implement durable RPC queues (survive restarts).
+  * Implement a dead-letter exchange (DLX) for RPC requests.
+  * Add per-queue TTL, route timed-out messages to the DLX.
+  * Route unrouteable RPC requests to the DLX.
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Tue, 26 Jul 2016 12:29:00 +0200
 
 qbroker (0.14.0-1) unstable; urgency=medium
 
