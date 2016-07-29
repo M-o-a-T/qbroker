@@ -98,26 +98,51 @@ class _time(object):
 			return dt.datetime.utcfromtimestamp(t).time()
 		return dt.time(*a)
 
+class RemoteException(Exception):
+	def _init__(self,r,s):
+		self.r = r
+		self.s = s
+	def __str__(self):
+		return self.s
+	def __repr__(self):
+		return self.r
+
+@_reg
+class _exc(object):
+	cls = BaseException
+	clsname = "exc"
+
+	@staticmethod
+	def encode(obj):
+		if isinstance(obj,Exception):
+			return {"e":obj.__class__.__name__,"s":str(obj),"r":repr(obj)}
+		else:
+			return {"b":obj.__class__.__name__,"s":str(obj),"r":repr(obj)}
+
+	@staticmethod
+	def decode(b=None,e=None,r=None,s=None,**_):
+		if b is not None:
+			return getattr(__builtins__,b)()
+		return RemoteException(r,s)
+
 class Encoder(JSONEncoder):
-	def __init__(self,tablespace,main=()):
+	def __init__(self,main=()):
 		self.objcache = {}
 		self.main = main
-		self.tablespace=tablespace
 		super(Encoder,self).__init__(skipkeys=False, ensure_ascii=False,
 			check_circular=False, allow_nan=False, sort_keys=False,
 			indent=(2 if DEBUG else None),
 			separators=((', ', ': ') if DEBUG else (',', ':')))
 
 	def default(self, data):
-		obj = type2cls.get(data.__class__.__name__,None)
+		if isinstance(data,BaseException):
+			obj = _exc
+		else:
+			obj = type2cls.get(data.__class__.__name__,None)
 		if obj is not None:
 			data = obj.encode(data)
 			data["_o"] = obj.clsname
 			return data
-
-		if self.tablespace is not None and isinstance(data,self.tablespace.table_data):
-			d = {"_table":data.name}
-			return d
 
 		if hasattr(data,"_read"):
 			ci = (data._t.name,data._id)
@@ -144,7 +169,7 @@ class Encoder(JSONEncoder):
 			return d
 		return super(Encoder,self).default(data)
 
-def encode(data,tablespace=None):
+def encode(data):
 	main = set()
 	if hasattr(data,"_read"):
 		if data._d is None:
@@ -162,16 +187,15 @@ def encode(data,tablespace=None):
 				main.add(d)
 		except (TypeError,KeyError,AttributeError):
 			pass
-	res = Encoder(tablespace,main).encode(data)
+	res = Encoder(main).encode(data)
 	if isinstance(res,str):
 		res = res.encode('utf-8')
 	return res
 
 class Decoder(JSONDecoder):
-	def __init__(self, proxy,tablespace):
+	def __init__(self, proxy):
 		self.objcache = {}
 		self.proxy = proxy
-		self.tablespace = tablespace
 		super(Decoder,self).__init__(object_hook=self.hook)
 
 	def hook(self,data):
@@ -184,10 +208,7 @@ class Decoder(JSONDecoder):
 
 		cr = data.pop('_cr',None)
 		if cr is None:
-			if '_table' in data and len(data) == 1:
-				data = self.tablespace[data['_table']]
-			else:
-				data = attrdict(data)
+			data = attrdict(data)
 			return data
 		d = self.objcache.get(cr,None)
 		if d is None:
@@ -205,11 +226,11 @@ class Decoder(JSONDecoder):
 			self.objcache[cr] = d
 		return d
 	
-def decode(data, tablespace=None, proxy=None, p1=None):
+def decode(data, proxy=None, p1=None):
 	if isinstance(data,bytes):
 		data = data.decode('utf-8')
 
-	d = Decoder(proxy,tablespace)
+	d = Decoder(proxy)
 	if p1:
 		d.objcache[1] = p1
 	return d.decode(data)
