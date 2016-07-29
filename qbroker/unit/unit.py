@@ -209,6 +209,7 @@ class Unit(object, metaclass=SyncFuncs):
 			return reg
 		elif len(a) == 2:
 			name = a[0]
+			assert isinstance(name,str), a
 			return reg(a[1])
 		else:
 			a = a[0]
