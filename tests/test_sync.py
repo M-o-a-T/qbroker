@@ -12,6 +12,7 @@ import unittest
 
 from functools import partial
 from qbroker.unit import make_unit,Unit
+from qbroker.unit.msg import MsgError
 from qbroker.util.tests import load_cfg
 from traceback import print_exc
 
@@ -70,8 +71,13 @@ class TestPing(unittest.TestCase):
     def ping_bad(self):
         u = yield from make_unit("test.ping.BAD", loop=AioRunner.loop, **self.cfg['config'])
         try:
-            with pytest.raises(asyncio.TimeoutError):
-                plong = yield from asyncio.wait_for(u.rpc("plinnnnng"),1,loop=AioRunner.loop)
+            plong = yield from asyncio.wait_for(u.rpc("plinnnnng"),1,loop=AioRunner.loop)
+        except asyncio.TimeoutError:
+            pass
+        except MsgError:
+            pass
+        else:
+            assert False, "did not raise an error"
         finally:
             yield from u.stop()
         self.plonged = False

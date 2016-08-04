@@ -195,10 +195,11 @@ def setup(sync=False,gevent=False):
 	if gevent and not qbroker.loop:
 		## You get spurious errors if the core threading module is imported
 		## before monkeypatching.
-		if 'threading' in sys.modules and 'TRAVIS' not in os.environ:
-			raise Exception('The ‘threading’ module was loaded before patching for gevent')
-		import gevent.monkey
-		gevent.monkey.patch_all()
+#		if 'threading' in sys.modules and 'TRAVIS' not in os.environ:
+#			raise Exception('The ‘threading’ module was loaded before patching for gevent')
+#		import gevent.monkey
+#		gevent.monkey.patch_all()
+		pass
 
 	global asyncio
 	import asyncio

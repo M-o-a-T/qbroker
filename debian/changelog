@@ -1,3 +1,9 @@
+qbroker (0.15.2-1) unstable; urgency=medium
+
+  * Do not monkeypatch.
+
+ -- Matthias Urlichs <smurf@noris.de>  Thu, 04 Aug 2016 09:34:27 +0200
+
 qbroker (0.15.1-1) unstable; urgency=medium
 
   * Distribute messages according to properties' key, not queue
