@@ -5,3 +5,5 @@ config:
       login: test
       password: test
       virtualhost: /test
+    handlers:
+      dead: 1
