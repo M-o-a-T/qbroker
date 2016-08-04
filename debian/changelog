@@ -1,3 +1,9 @@
+qbroker (0.15.3-1) unstable; urgency=medium
+
+  * The dead letter exchange is named "dead" (or whatever), no suffix.
+
+ -- Matthias Urlichs <smurf@noris.de>  Thu, 04 Aug 2016 10:15:28 +0200
+
 qbroker (0.15.2-1) unstable; urgency=medium
 
   * Do not monkeypatch.
