@@ -87,7 +87,7 @@ class Unit(object, metaclass=SyncFuncs):
 			yield from self.restarting.wait()
 
 		try:
-			self._kill()
+			self.close()
 		except Exception:
 			pass
 		
@@ -111,13 +111,7 @@ class Unit(object, metaclass=SyncFuncs):
 		except ChannelClosed:
 			pass
 
-		c,self.conn = self.conn,None
-		if c:
-			try:
-				yield from c.close()
-			except Exception: # pragma: no cover
-				logger.exception("closing connection")
-		self._kill()
+		self.close()
 	
 	## client
 
@@ -309,9 +303,9 @@ class Unit(object, metaclass=SyncFuncs):
 	## cleanup, less interesting (hopefully)
 
 	def __del__(self):
-		self._kill(deleting=True)
+		self.close(deleting=True)
 
-	def _kill(self, deleting=False):
+	def close(self, deleting=False):
 		self._kill_conn(deleting=deleting)
 
 	def _kill_conn(self, deleting=False):
