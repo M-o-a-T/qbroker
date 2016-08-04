@@ -120,7 +120,7 @@ class Connection(object):
 		u = self.unit()
 		# See doc/qbroker.rst
 		yield from self._setup_one("alert",'topic', self._on_alert, u.uuid)
-		yield from self._setup_one("rpc",'topic', self._on_drpc, u.uuid, 'qbroker.uuid.'+u.uuid, alt="dead")
+		yield from self._setup_one("rpc",'topic', self._on_rpc, u.uuid, 'qbroker.uuid.'+u.uuid, alt="dead")
 		yield from self._setup_one("reply",'direct', self._on_reply, u.uuid, u.uuid)
 		if u.config['amqp']['handlers']['dead']:
 			yield from self._setup_one("dead",'topic', self._on_dead_rpc, "rpc", exclusive=False, route_key='#')
