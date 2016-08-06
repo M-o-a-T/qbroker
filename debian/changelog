@@ -1,3 +1,9 @@
+qbroker (0.15.3-2) unstable; urgency=medium
+
+  * Fixed Debian dependencies
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Sun, 07 Aug 2016 00:15:24 +0200
+
 qbroker (0.15.3-1) unstable; urgency=medium
 
   * The dead letter exchange is named "dead" (or whatever), no suffix.
