@@ -29,7 +29,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 class DeadLettered(RuntimeError):
-	pass
+	def __str__(self):
+		return "DeadLettered:"+super().__str__()
 
 class _ch(object):
 	"""Helper object"""
