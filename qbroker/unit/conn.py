@@ -101,7 +101,7 @@ class Connection(object):
 			ttl = cfg['ttl'].get(name,0)
 			if ttl:
 				d["x-dead-letter-exchange"] = cfg['queues']['dead']
-				d["x-message-ttl"] = cfg['ttl'][name]
+				d["x-message-ttl"] = int(1000*cfg['ttl'][name])
 			ch.queue = (yield from ch.channel.queue_declare(cfg['queues'][name]+q, auto_delete=True, passive=False, exclusive=exclusive, arguments=d))
 			yield from ch.channel.basic_qos(prefetch_count=1,prefetch_size=0,connection_global=False)
 			logger.debug("Chan %s: read %s", ch.channel,cfg['queues'][name]+q)
@@ -293,7 +293,7 @@ class Connection(object):
 		d = {}
 		if cfg['ttl']['rpc'] or rpc.ttl:
 			d["x-dead-letter-exchange"] = cfg['queues']['dead']
-			d["x-message-ttl"] = rpc.ttl if rpc.ttl else cfg['ttl']['rpc']
+			d["x-message-ttl"] = int(1000*(rpc.ttl if rpc.ttl else cfg['ttl']['rpc']))
 		rpc.queue = (yield from rpc.channel.queue_declare(cfg['queues']['rpc']+rpc.name, auto_delete=not rpc.durable, passive=False, arguments=d))
 		logger.debug("Chan %s: bind %s %s %s", ch.channel,cfg['exchanges']['rpc'], rpc.name, rpc.queue['queue'])
 		yield from rpc.channel.queue_bind(rpc.queue['queue'], cfg['exchanges']['rpc'], routing_key=rpc.name)
@@ -331,7 +331,7 @@ class Connection(object):
 			ch = (yield from self.amqp.channel())
 			d = {}
 			if rpc.ttl is not None:
-				d["x-message-ttl"] = rpc.ttl
+				d["x-message-ttl"] = int(1000*rpc.ttl)
 			q = (yield from ch.queue_declare(dn, auto_delete=False, passive=False, exclusive=False, arguments=d))
 			yield from ch.basic_consume(queue_name=q['queue'], callback=self._on_alert)
 		else:
