@@ -93,7 +93,7 @@ class Connection(object):
 		d = {}
 		if alt is not None:
 			d["alternate-exchange"] = cfg['exchanges'][alt]
-		yield from ch.channel.exchange_declare(cfg['exchanges'][name], typ, auto_delete=False, passive=False, arguments=d)
+		yield from ch.channel.exchange_declare(cfg['exchanges'][name], typ, auto_delete=False, durable=True, passive=False, arguments=d)
 
 		if q is not None:
 			assert callback is not None
@@ -294,7 +294,7 @@ class Connection(object):
 		if cfg['ttl']['rpc'] or rpc.ttl:
 			d["x-dead-letter-exchange"] = cfg['queues']['dead']
 			d["x-message-ttl"] = int(1000*(rpc.ttl if rpc.ttl else cfg['ttl']['rpc']))
-		rpc.queue = (yield from rpc.channel.queue_declare(cfg['queues']['rpc']+rpc.name, auto_delete=not rpc.durable, passive=False, arguments=d))
+		rpc.queue = (yield from rpc.channel.queue_declare(cfg['queues']['rpc']+rpc.name, auto_delete=not rpc.durable, durable=rpc.durable, passive=False, arguments=d))
 		logger.debug("Chan %s: bind %s %s %s", ch.channel,cfg['exchanges']['rpc'], rpc.name, rpc.queue['queue'])
 		yield from rpc.channel.queue_bind(rpc.queue['queue'], cfg['exchanges']['rpc'], routing_key=rpc.name)
 		self.rpcs[rpc.name] = rpc
@@ -332,7 +332,7 @@ class Connection(object):
 			d = {}
 			if rpc.ttl is not None:
 				d["x-message-ttl"] = int(1000*rpc.ttl)
-			q = (yield from ch.queue_declare(dn, auto_delete=False, passive=False, exclusive=False, arguments=d))
+			q = (yield from ch.queue_declare(dn, auto_delete=False, passive=False, exclusive=False, durable=True, arguments=d))
 			yield from ch.basic_consume(queue_name=q['queue'], callback=self._on_alert)
 		else:
 			ch = self.alert.channel
