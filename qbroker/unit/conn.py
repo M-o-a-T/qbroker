@@ -294,14 +294,18 @@ class Connection(object):
 		if cfg['ttl']['rpc'] or rpc.ttl:
 			d["x-dead-letter-exchange"] = cfg['queues']['dead']
 			d["x-message-ttl"] = int(1000*(rpc.ttl if rpc.ttl else cfg['ttl']['rpc']))
-		rpc.queue = (yield from rpc.channel.queue_declare(cfg['queues']['rpc']+rpc.name, auto_delete=not rpc.durable, durable=rpc.durable, passive=False, arguments=d))
-		logger.debug("Chan %s: bind %s %s %s", ch.channel,cfg['exchanges']['rpc'], rpc.name, rpc.queue['queue'])
-		yield from rpc.channel.queue_bind(rpc.queue['queue'], cfg['exchanges']['rpc'], routing_key=rpc.name)
 		self.rpcs[rpc.name] = rpc
+		try:
+			rpc.queue = (yield from rpc.channel.queue_declare(cfg['queues']['rpc']+rpc.name, auto_delete=not rpc.durable, durable=rpc.durable, passive=False, arguments=d))
+			logger.debug("Chan %s: bind %s %s %s", ch.channel,cfg['exchanges']['rpc'], rpc.name, rpc.queue['queue'])
+			yield from rpc.channel.queue_bind(rpc.queue['queue'], cfg['exchanges']['rpc'], routing_key=rpc.name)
 
-		yield from rpc.channel.basic_qos(prefetch_count=1,prefetch_size=0,connection_global=False)
-		logger.debug("Chan %s: read %s", rpc.channel,rpc.queue['queue'])
-		yield from rpc.channel.basic_consume(queue_name=rpc.queue['queue'], callback=self._on_rpc, consumer_tag=rpc.uuid)
+			yield from rpc.channel.basic_qos(prefetch_count=1,prefetch_size=0,connection_global=False)
+			logger.debug("Chan %s: read %s", rpc.channel,rpc.queue['queue'])
+			yield from rpc.channel.basic_consume(queue_name=rpc.queue['queue'], callback=self._on_rpc, consumer_tag=rpc.uuid)
+		except BaseException:
+			del self.rpcs[rpc.name]
+			raise
 
 	@asyncio.coroutine
 	def unregister_rpc(self,rpc):
@@ -327,21 +331,26 @@ class Connection(object):
 		if len(n) > 1 and '#' in n:
 			raise RuntimeError("I won't find that")
 
-		if rpc.durable:
-			ch = (yield from self.amqp.channel())
-			d = {}
-			if rpc.ttl is not None:
-				d["x-message-ttl"] = int(1000*rpc.ttl)
-			q = (yield from ch.queue_declare(dn, auto_delete=False, passive=False, exclusive=False, durable=True, arguments=d))
-			yield from ch.basic_consume(queue_name=q['queue'], callback=self._on_alert)
-		else:
-			ch = self.alert.channel
-			q = self.alert.queue
-		yield from ch.queue_bind(q['queue'], self.alert.exchange, routing_key=rpc.name)
 		self.alerts[rpc.name] = rpc
-
 		if rpc.name.endswith('.#'):
 			self.alert_bc = True
+
+		try:
+			if rpc.durable:
+				ch = (yield from self.amqp.channel())
+				d = {}
+				if rpc.ttl is not None:
+					d["x-message-ttl"] = int(1000*rpc.ttl)
+				q = (yield from ch.queue_declare(dn, auto_delete=False, passive=False, exclusive=False, durable=True, arguments=d))
+				yield from ch.basic_consume(queue_name=q['queue'], callback=self._on_alert)
+			else:
+				ch = self.alert.channel
+				q = self.alert.queue
+			yield from ch.queue_bind(q['queue'], self.alert.exchange, routing_key=rpc.name)
+		except BaseException:
+			del self.alerts[rpc.name]
+			raise
+
 		rpc.ch = ch
 		rpc.q = q
 
