@@ -1,3 +1,9 @@
+qbroker (0.16.0-1) unstable; urgency=medium
+
+  * Support deliver-once events.
+
+ -- Matthias Urlichs <smurf@noris.de>  Wed, 10 Aug 2016 11:22:02 +0200
+
 qbroker (0.15.3-1) unstable; urgency=medium
 
   * The dead letter exchange is named "dead" (or whatever), no suffix.
