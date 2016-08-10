@@ -294,7 +294,7 @@ class Connection(object):
 		if cfg['ttl']['rpc'] or rpc.ttl:
 			d["x-dead-letter-exchange"] = cfg['queues']['dead']
 			d["x-message-ttl"] = rpc.ttl if rpc.ttl else cfg['ttl']['rpc']
-		rpc.queue = (yield from rpc.channel.queue_declare(cfg['queues']['rpc']+rpc.name.replace('.','_'), auto_delete=not rpc.durable, passive=False, arguments=d))
+		rpc.queue = (yield from rpc.channel.queue_declare(cfg['queues']['rpc']+rpc.name, auto_delete=not rpc.durable, passive=False, arguments=d))
 		logger.debug("Chan %s: bind %s %s %s", ch.channel,cfg['exchanges']['rpc'], rpc.name, rpc.queue['queue'])
 		yield from rpc.channel.queue_bind(rpc.queue['queue'], cfg['exchanges']['rpc'], routing_key=rpc.name)
 		self.rpcs[rpc.name] = rpc
