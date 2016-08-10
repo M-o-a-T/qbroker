@@ -133,7 +133,10 @@ class Connection(object):
 			msg = BaseMsg.load(msg,envelope,properties)
 			reply = msg.make_response()
 			reply_to = getattr(msg, 'reply_to',None)
-			reply.set_error(DeadLettered(envelope.exchange_name), envelope.routing_key, "reply")
+			exn = envelope.exchange_name
+			if exn.startswith("dead"):
+				exn = properties.headers['x-death'][0]['exchange']
+			reply.set_error(DeadLettered(exn), envelope.routing_key, "reply")
 			reply,props = reply.dump(self)
 			reply = self.codec.encode(reply)
 			yield from self.reply.channel.publish(reply, self.reply.exchange, reply_to, properties=props)
