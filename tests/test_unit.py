@@ -219,6 +219,55 @@ def test_alert_no_data(unit1, unit2, loop):
 
 @pytest.mark.run_loop
 @asyncio.coroutine
+def test_alert_durable(unit1, unit2, loop):
+	ncalls = 0
+	def alert_me():
+		nonlocal ncalls
+		ncalls += 1
+	r1 = (yield from unit1.register_alert_async("my.dur.alert",alert_me, call_conv=CC_DICT, durable=True, ttl=1))
+	r2 = (yield from unit2.register_alert_async("my.dur.alert",alert_me, call_conv=CC_DICT, durable=True, ttl=1))
+
+	yield from unit2.alert("my.dur.alert")
+	yield from asyncio.sleep(0.3, loop=loop)
+	assert ncalls == 1
+
+	# Now check if this thing really is durable
+	yield from unit1.unregister_alert_async(r1)
+	yield from unit2.unregister_alert_async(r2)
+	yield from asyncio.sleep(0.1, loop=loop)
+	yield from unit2.alert("my.dur.alert")
+	yield from asyncio.sleep(0.3, loop=loop)
+	assert ncalls == 1
+	r1 = (yield from unit1.register_alert_async("my.dur.alert",alert_me, call_conv=CC_DICT, durable=True, ttl=1))
+	yield from asyncio.sleep(0.3, loop=loop)
+	assert ncalls == 2
+
+@pytest.mark.run_loop
+@asyncio.coroutine
+def test_alert_nondurable(unit1, unit2, loop):
+	ncalls = 0
+	def alert_me():
+		nonlocal ncalls
+		ncalls += 1
+	r1 = (yield from unit1.register_alert_async("my.alert",alert_me, call_conv=CC_DICT))
+	r2 = (yield from unit2.register_alert_async("my.alert",alert_me, call_conv=CC_DICT))
+
+	yield from unit2.alert("my.alert")
+	yield from asyncio.sleep(0.3, loop=loop)
+	assert ncalls == 2
+
+	# now verify that messages do get lost
+	yield from unit1.unregister_alert_async(r1)
+	yield from unit2.unregister_alert_async(r2)
+	yield from unit2.alert("my.alert")
+	yield from asyncio.sleep(0.3, loop=loop)
+	assert ncalls == 2
+	r1 = (yield from unit1.register_alert_async("my.alert",alert_me, call_conv=CC_DICT))
+	yield from asyncio.sleep(0.3, loop=loop)
+	assert ncalls == 2
+
+@pytest.mark.run_loop
+@asyncio.coroutine
 def test_alert_stop(unit1, unit2, loop):
 	ncall = 0
 	nhit = 0

@@ -320,20 +320,30 @@ class Connection(object):
 	@asyncio.coroutine
 	def register_alert(self,rpc):
 		assert rpc.name not in self.alerts
-		n = rpc.name
+		dn = n = rpc.name
 		if rpc.name.endswith('.#'):
 			n = n[:-2]
+			dn = n+'_all_'
 		if len(n) > 1 and '#' in n:
 			raise RuntimeError("I won't find that")
 
-		ch = self.alert
-		cfg = self.unit().config['amqp']
-		logger.debug("Chan %s: bind %s %s %s", ch.channel,cfg['exchanges']['alert'], rpc.name, ch.exchange)
-		yield from ch.channel.queue_bind(ch.queue['queue'], ch.exchange, routing_key=rpc.name)
+		if rpc.durable:
+			ch = (yield from self.amqp.channel())
+			d = {}
+			if rpc.ttl is not None:
+				d["x-message-ttl"] = rpc.ttl
+			q = (yield from ch.queue_declare(dn, auto_delete=False, passive=False, exclusive=False, arguments=d))
+			yield from ch.basic_consume(queue_name=q['queue'], callback=self._on_alert)
+		else:
+			ch = self.alert.channel
+			q = self.alert.queue
+		yield from ch.queue_bind(q['queue'], self.alert.exchange, routing_key=rpc.name)
 		self.alerts[rpc.name] = rpc
 
 		if rpc.name.endswith('.#'):
 			self.alert_bc = True
+		rpc.ch = ch
+		rpc.q = q
 
 	@asyncio.coroutine
 	def unregister_alert(self,rpc):
@@ -342,9 +352,10 @@ class Connection(object):
 		else:
 			del self.alerts[rpc.name]
 		ch = self.alert
-		cfg = self.unit().config['amqp']
-		logger.debug("Chan %s: unbind %s %s %s", ch.channel,cfg['exchanges']['alert'], rpc.name, ch.exchange)
-		yield from ch.channel.queue_unbind(ch.queue['queue'], ch.exchange, routing_key=rpc.name)
+		if rpc.durable:
+			yield from rpc.ch.close()
+		else:
+			yield from rpc.ch.queue_unbind(rpc.q['queue'], ch.exchange, routing_key=rpc.name)
 
 	@asyncio.coroutine
 	def close(self):
