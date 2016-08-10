@@ -337,6 +337,8 @@ class Connection(object):
 
 		try:
 			if rpc.durable:
+				if isinstance(rpc.durable,str):
+					dn = rpc.durable
 				ch = (yield from self.amqp.channel())
 				d = {}
 				if rpc.ttl is not None:

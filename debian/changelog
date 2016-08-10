@@ -1,6 +1,6 @@
 qbroker (0.16.0-1) unstable; urgency=medium
 
-  * Support deliver-once events.
+  * Support persistent events.
 
  -- Matthias Urlichs <smurf@noris.de>  Wed, 10 Aug 2016 11:22:02 +0200
 
