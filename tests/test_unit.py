@@ -17,15 +17,13 @@ import pytest
 import os
 import asyncio
 from qbroker.unit import Unit, CC_DICT,CC_DATA,CC_MSG
-from testsupport import unit, TIMEOUT
+from testsupport import unit, TIMEOUT, cfg
 from qbroker.unit.msg import MsgError,AlertMsg
-from qbroker.util.tests import load_cfg
 import unittest
 from unittest.mock import Mock
 
 def test_basic(loop):
-	cfg = load_cfg("test.cfg")
-	u = Unit("test.zero", loop=loop, **cfg['config'])
+	u = Unit("test.zero", loop=loop, **cfg)
 	loop.run_until_complete(u.start())
 	loop.run_until_complete(u.stop())
 
@@ -36,7 +34,6 @@ def unit1(loop):
 def unit2(loop):
 	yield from _unit("two",loop)
 def _unit(name,loop):
-	cfg = load_cfg("test.cfg")['config']
 	u = loop.run_until_complete(unit("test."+name, loop=loop, **cfg))
 	yield u
 	x = u.stop()
@@ -45,10 +42,10 @@ def _unit(name,loop):
 @pytest.mark.run_loop
 @asyncio.coroutine
 def test_conn_not(loop, unused_tcp_port):
-	cfg = load_cfg("test.cfg")['config']
 	cfg['amqp']['server']['port'] = unused_tcp_port
 	with pytest.raises(OSError):
 		yield from unit("test.no_port", loop=loop, **cfg)
+	del cfg['amqp']['server']['port']
 
 @pytest.mark.run_loop
 @asyncio.coroutine
@@ -374,7 +371,6 @@ def test_rpc_unroutable(unit1, unit2, loop):
 	assert call_me.call_count == 0
 	
 def test_reg_sync(loop):
-	cfg = load_cfg("test.cfg")['config']
 	u = Unit("test.three", loop=loop, **cfg)
 	@u.register_rpc("foo.bar")
 	def foo_bar_0(msg):

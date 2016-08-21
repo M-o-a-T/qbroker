@@ -1,3 +1,9 @@
+qbroker (0.16.0-3) unstable; urgency=medium
+
+  * Test fix: use configured exchange names when cleaning up pre-test.
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Mon, 22 Aug 2016 00:56:16 +0200
+
 qbroker (0.16.0-2) unstable; urgency=medium
 
   * Test fix: clear queues.

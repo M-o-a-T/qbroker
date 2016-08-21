@@ -12,9 +12,8 @@ import unittest
 
 from functools import partial
 from qbroker.unit import Unit
-from testsupport import unit,TIMEOUT
+from testsupport import unit,TIMEOUT,cfg
 from qbroker.unit.msg import MsgError
-from qbroker.util.tests import load_cfg
 from traceback import print_exc
 
 
@@ -26,8 +25,6 @@ class TestPing(unittest.TestCase):
     plonged = None
 
     def setUp(self):
-        self.cfg = load_cfg("test.cfg")
-
         AioRunner.start(self.setUp_async, self.tearDown_async)
 
     def tearDown(self):
@@ -35,7 +32,7 @@ class TestPing(unittest.TestCase):
 
     @asyncio.coroutine
     def setUp_async(self):
-        self.unit = yield from unit("test.ping.A", loop=AioRunner.loop, **self.cfg['config'])
+        self.unit = yield from unit("test.ping.A", loop=AioRunner.loop, **cfg)
         yield from self.unit.register_rpc_async(self.pling)
 
     @asyncio.coroutine
@@ -51,7 +48,7 @@ class TestPing(unittest.TestCase):
 
     @asyncio.coroutine
     def ping_b(self):
-        u = yield from unit("test.ping.B", loop=AioRunner.loop, **self.cfg['config'])
+        u = yield from unit("test.ping.B", loop=AioRunner.loop, **cfg)
         try:
             plong = yield from asyncio.wait_for(u.rpc("pling"),1,loop=AioRunner.loop)
             assert plong == "plong"
@@ -60,7 +57,7 @@ class TestPing(unittest.TestCase):
         self.plonged = True
 
     def test_ping_sync(self):
-        u = Unit("test.ping.SYNC", loop=AioRunner.loop, **self.cfg['config'])
+        u = Unit("test.ping.SYNC", loop=AioRunner.loop, **cfg)
         u.start_sync()
         try:
             plong = u.rpc_sync("pling", _timeout=TIMEOUT*2)
@@ -70,7 +67,7 @@ class TestPing(unittest.TestCase):
 
     @asyncio.coroutine
     def ping_bad(self):
-        u = yield from unit("test.ping.BAD", loop=AioRunner.loop, **self.cfg['config'])
+        u = yield from unit("test.ping.BAD", loop=AioRunner.loop, **cfg)
         try:
             plong = yield from asyncio.wait_for(u.rpc("plinnnnng"),1,loop=AioRunner.loop)
         except asyncio.TimeoutError:

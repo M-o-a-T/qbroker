@@ -15,8 +15,7 @@ import unittest
 
 from functools import partial
 from qbroker.unit import Unit
-from testsupport import unit,TIMEOUT
-from qbroker.util.tests import load_cfg
+from testsupport import unit,TIMEOUT,cfg
 import qbroker
 from traceback import print_exc
 
@@ -29,7 +28,6 @@ class TestPing(unittest.TestCase):
     plonged = None
 
     def setUp(self):
-        self.cfg = load_cfg("test.cfg")
         qbroker.loop.run_until_complete(self.setUp_async())
 
     def tearDown(self):
@@ -37,7 +35,7 @@ class TestPing(unittest.TestCase):
 
     @asyncio.coroutine
     def setUp_async(self):
-        self.unit = yield from unit("test.ping.A", loop=qbroker.loop, **self.cfg['config'])
+        self.unit = yield from unit("test.ping.A", loop=qbroker.loop, **cfg)
         yield from self.unit.register_rpc_async(self.pling)
 
     @asyncio.coroutine
@@ -58,7 +56,7 @@ class TestPing(unittest.TestCase):
         j.join()
 
     def _test_ping_gevent(self):
-        u = Unit("test.ping.GEVENT", loop=qbroker.loop, **self.cfg['config'])
+        u = Unit("test.ping.GEVENT", loop=qbroker.loop, **cfg)
         u.start_gevent()
         try:
             plong = u.rpc_gevent("pling", _timeout=TIMEOUT*2)

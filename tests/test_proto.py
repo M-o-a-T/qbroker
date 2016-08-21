@@ -19,7 +19,6 @@ import os
 import asyncio
 from qbroker.proto import ProtocolClient,ProtocolInteraction
 from qbroker.proto.lines import LineProtocol
-from qbroker.util.tests import load_cfg
 import unittest
 from unittest.mock import Mock
 

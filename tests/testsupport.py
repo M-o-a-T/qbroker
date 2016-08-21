@@ -14,19 +14,26 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 ##BP
 
 import asyncio
-from qbroker.unit import make_unit
+from qbroker.unit import make_unit, DEFAULT_CONFIG
+from qbroker.util import combine_dict
 
 TIMEOUT=0.5
+
+from qbroker.util.tests import load_cfg
+cfg = load_cfg("test.cfg")['config']
+cfg = combine_dict(cfg, DEFAULT_CONFIG)
+
 
 @asyncio.coroutine
 def unit(name,*a,**k):
 	@asyncio.coroutine
 	def setup(c):
 		ch = yield from c.channel()
-		yield from ch.exchange_delete('alert')
-		yield from ch.exchange_delete('rpc')
-		yield from ch.exchange_delete('dead')
-		yield from ch.exchange_delete('reply')
+		cf = cfg['amqp']['exchanges']
+		yield from ch.exchange_delete(cf['alert'])
+		yield from ch.exchange_delete(cf['rpc'])
+		yield from ch.exchange_delete(cf['dead'])
+		yield from ch.exchange_delete(cf['reply'])
 		yield from ch.close()
 	u = yield from make_unit(name,*a,_setup=(setup if name in ("test.ping.A",) else None),**k)
 	return u
