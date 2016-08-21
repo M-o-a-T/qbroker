@@ -66,14 +66,14 @@ DEFAULT_CONFIG=dict(
 	))
 
 @asyncio.coroutine
-def make_unit(*a,**kw):
+def make_unit(*a, _setup=None, **kw):
 	"""\
 		Create and start a QBroker unit.
 
 		See qbroker.unit.Unit for parameters.
 		"""
 	u = Unit(*a,**kw)
-	yield from u.start()
+	yield from u.start(_setup=_setup)
 	return u
 
 from .unit import Unit

@@ -63,7 +63,7 @@ class Connection(object):
 		self.codec = codec
 
 	@asyncio.coroutine
-	def connect(self):
+	def connect(self, _setup=None):
 		logger.debug("Connecting %s",self)
 		try:
 			self.amqp_transport,self.amqp = (yield from aioamqp.connect(loop=self._loop, protocol_factory=NotifyingAmqpProtocol, **self.cfg))
@@ -71,6 +71,8 @@ class Connection(object):
 		except Exception as e:
 			logger.exception("Not connected to AMPQ: host=%s vhost=%s user=%s", self.cfg['host'],self.cfg['virtualhost'],self.cfg['login'])
 			raise
+		if _setup is not None:
+			yield from _setup(self.amqp)
 		self.amqp._init_futures(self._loop)
 		yield from self.setup_channels()
 		logger.debug("Connected %s",self)

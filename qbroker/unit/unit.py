@@ -61,7 +61,7 @@ class Unit(object, metaclass=SyncFuncs):
 		self.alert_endpoints = {}
 
 	@asyncio.coroutine
-	def start(self, *args, restart=False):
+	def start(self, *args, restart=False, _setup=None):
 		"""Connect. This may fail."""
 
 		if self.uuid is None:
@@ -76,7 +76,7 @@ class Unit(object, metaclass=SyncFuncs):
 		self.register_alert("qbroker.app."+self.app, self._alert_ping, call_conv=CC_DATA)
 		self.register_rpc("qbroker.app."+self.app, self._reply_ping)
 
-		yield from self._create_conn()
+		yield from self._create_conn(_setup=_setup)
 		yield from self.alert('qbroker.restart' if restart else 'qbroker.start', uuid=self.uuid, app=self.app, args=args)
 		self.restarting.set()
 	
@@ -325,10 +325,10 @@ class Unit(object, metaclass=SyncFuncs):
 					logger.exception("closing connection")
 
 	@asyncio.coroutine
-	def _create_conn(self):
+	def _create_conn(self, _setup=None):
 		from .conn import Connection
 		conn = Connection(self)
-		yield from conn.connect()
+		yield from conn.connect(_setup=_setup)
 		for d in self.rpc_endpoints.values():
 			yield from conn.register_rpc(d)
 		for d in self.alert_endpoints.values():

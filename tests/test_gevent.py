@@ -14,7 +14,8 @@ import sys
 import unittest
 
 from functools import partial
-from qbroker.unit import make_unit,Unit
+from qbroker.unit import Unit
+from testsupport import unit,TIMEOUT
 from qbroker.util.tests import load_cfg
 import qbroker
 from traceback import print_exc
@@ -36,7 +37,7 @@ class TestPing(unittest.TestCase):
 
     @asyncio.coroutine
     def setUp_async(self):
-        self.unit = yield from make_unit("test.ping.A", loop=qbroker.loop, **self.cfg['config'])
+        self.unit = yield from unit("test.ping.A", loop=qbroker.loop, **self.cfg['config'])
         yield from self.unit.register_rpc_async(self.pling)
 
     @asyncio.coroutine
@@ -60,7 +61,7 @@ class TestPing(unittest.TestCase):
         u = Unit("test.ping.GEVENT", loop=qbroker.loop, **self.cfg['config'])
         u.start_gevent()
         try:
-            plong = u.rpc_gevent("pling", _timeout=1)
+            plong = u.rpc_gevent("pling", _timeout=TIMEOUT*2)
             assert plong == "plong"
         finally:
             u.stop_gevent()

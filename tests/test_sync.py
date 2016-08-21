@@ -11,7 +11,8 @@ import sys
 import unittest
 
 from functools import partial
-from qbroker.unit import make_unit,Unit
+from qbroker.unit import Unit
+from testsupport import unit,TIMEOUT
 from qbroker.unit.msg import MsgError
 from qbroker.util.tests import load_cfg
 from traceback import print_exc
@@ -34,7 +35,7 @@ class TestPing(unittest.TestCase):
 
     @asyncio.coroutine
     def setUp_async(self):
-        self.unit = yield from make_unit("test.ping.A", loop=AioRunner.loop, **self.cfg['config'])
+        self.unit = yield from unit("test.ping.A", loop=AioRunner.loop, **self.cfg['config'])
         yield from self.unit.register_rpc_async(self.pling)
 
     @asyncio.coroutine
@@ -50,7 +51,7 @@ class TestPing(unittest.TestCase):
 
     @asyncio.coroutine
     def ping_b(self):
-        u = yield from make_unit("test.ping.B", loop=AioRunner.loop, **self.cfg['config'])
+        u = yield from unit("test.ping.B", loop=AioRunner.loop, **self.cfg['config'])
         try:
             plong = yield from asyncio.wait_for(u.rpc("pling"),1,loop=AioRunner.loop)
             assert plong == "plong"
@@ -62,14 +63,14 @@ class TestPing(unittest.TestCase):
         u = Unit("test.ping.SYNC", loop=AioRunner.loop, **self.cfg['config'])
         u.start_sync()
         try:
-            plong = u.rpc_sync("pling", _timeout=1)
+            plong = u.rpc_sync("pling", _timeout=TIMEOUT*2)
             assert plong == "plong"
         finally:
             u.stop_sync()
 
     @asyncio.coroutine
     def ping_bad(self):
-        u = yield from make_unit("test.ping.BAD", loop=AioRunner.loop, **self.cfg['config'])
+        u = yield from unit("test.ping.BAD", loop=AioRunner.loop, **self.cfg['config'])
         try:
             plong = yield from asyncio.wait_for(u.rpc("plinnnnng"),1,loop=AioRunner.loop)
         except asyncio.TimeoutError:

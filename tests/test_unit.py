@@ -16,7 +16,8 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 import pytest
 import os
 import asyncio
-from qbroker.unit import make_unit as unit,Unit, CC_DICT,CC_DATA,CC_MSG
+from qbroker.unit import Unit, CC_DICT,CC_DATA,CC_MSG
+from testsupport import unit, TIMEOUT
 from qbroker.unit.msg import MsgError,AlertMsg
 from qbroker.util.tests import load_cfg
 import unittest
@@ -72,7 +73,7 @@ def test_rpc_basic(unit1, unit2, loop):
 	yield from unit1.unregister_rpc_async(r1)
 	t = unit1.rpc("my.call", "No!")
 	try:
-		yield from asyncio.wait_for(t,timeout=0.5,loop=loop)
+		yield from asyncio.wait_for(t,timeout=TIMEOUT*5/2,loop=loop)
 	except asyncio.TimeoutError:
 		pass
 	except MsgError as exc:
@@ -87,7 +88,7 @@ def test_rpc_direct(unit1, unit2, loop):
 	assert res == "foo one"
 	t = unit2.rpc("my.call", "No!", _uuid=unit2.uuid)
 	try:
-		yield from asyncio.wait_for(t,timeout=0.5,loop=loop)
+		yield from asyncio.wait_for(t,timeout=TIMEOUT*5/2,loop=loop)
 	except asyncio.TimeoutError:
 		pass
 	except MsgError as exc:
@@ -107,7 +108,7 @@ def test_rpc_unencoded(unit1, unit2, loop):
 	yield from unit1.register_rpc_async("my.call",call_me, call_conv=CC_DICT)
 	try:
 		r = unit2.rpc("my.call")
-		r = (yield from asyncio.wait_for(r, timeout=0.2, loop=loop))
+		r = (yield from asyncio.wait_for(r, timeout=TIMEOUT, loop=loop))
 	except MsgError as exc:
 		# message was rejected. Thus deadlettered.
 		assert exc.cls == "DeadLettered"
@@ -155,13 +156,13 @@ def test_alert_callback(unit1, unit2, loop):
 		nonlocal n
 		n += 1
 		assert x == "bar dud", x
-	yield from unit2.alert("my.alert",y="dud",callback=cb,call_conv=CC_DATA, timeout=0.2)
+	yield from unit2.alert("my.alert",y="dud",callback=cb,call_conv=CC_DATA, timeout=TIMEOUT)
 	assert n == 2
 	n = 0
-	yield from unit1.alert("my.alert",_data={'y':"dud"},callback=cb,call_conv=CC_DATA, timeout=0.2)
+	yield from unit1.alert("my.alert",_data={'y':"dud"},callback=cb,call_conv=CC_DATA, timeout=TIMEOUT)
 	assert n == 2
 	yield from unit1.unregister_alert_async(r1)
-	yield from unit1.alert("my.alert",_data={'y':"dud"},callback=cb,call_conv=CC_DATA, timeout=0.2)
+	yield from unit1.alert("my.alert",_data={'y':"dud"},callback=cb,call_conv=CC_DATA, timeout=TIMEOUT)
 	assert n == 3
 
 @pytest.mark.run_loop
@@ -171,7 +172,7 @@ def test_alert_uncodeable(unit1, unit2, loop):
 	yield from unit1.register_alert_async("my.alert",alert_me, call_conv=CC_DICT)
 	def cb(msg):
 		assert False,"Called?"
-	n = (yield from unit2.alert("my.alert",callback=cb, timeout=0.2))
+	n = (yield from unit2.alert("my.alert",callback=cb, timeout=TIMEOUT))
 	assert n == 0
 
 @pytest.mark.run_loop
@@ -189,7 +190,7 @@ def test_alert_oneway(unit1, unit2, loop):
 	yield from unit2.alert("my.alert2",_data={'y':"dud"})
 	yield from unit2.alert("my.alert3",_data={'y':"dud"})
 	yield from unit2.alert("my.alert4.whatever",_data={'z':"dud"})
-	yield from asyncio.sleep(0.1, loop=loop)
+	yield from asyncio.sleep(TIMEOUT/2, loop=loop)
 	alert_me1.assert_called_with(y='dud')
 	alert_me2.assert_called_with(dict(y='dud'))
 	alert_me3.assert_called_with(AlertMsg(data=dict(y='dud')))
@@ -210,10 +211,10 @@ def test_alert_no_data(unit1, unit2, loop):
 		assert not a
 		assert not k
 		return {}
-	res = (yield from unit2.alert("my.alert1",_data="", callback=recv1, call_conv=CC_DATA, timeout=0.2))
+	res = (yield from unit2.alert("my.alert1",_data="", callback=recv1, call_conv=CC_DATA, timeout=TIMEOUT))
 	alert_me1.assert_called_with("")
 	assert res == 1
-	res = (yield from unit2.alert("my.alert2", callback=recv2, call_conv=CC_DICT, timeout=0.2))
+	res = (yield from unit2.alert("my.alert2", callback=recv2, call_conv=CC_DICT, timeout=TIMEOUT))
 	alert_me2.assert_called_with()
 	assert res == 1
 
@@ -228,18 +229,18 @@ def test_alert_durable(unit1, unit2, loop):
 	r2 = (yield from unit2.register_alert_async("my.dur.alert",alert_me, call_conv=CC_DICT, durable=True, ttl=1))
 
 	yield from unit2.alert("my.dur.alert")
-	yield from asyncio.sleep(0.3, loop=loop)
+	yield from asyncio.sleep(TIMEOUT*3/2, loop=loop)
 	assert ncalls == 1
 
 	# Now check if this thing really is durable
 	yield from unit1.unregister_alert_async(r1)
 	yield from unit2.unregister_alert_async(r2)
-	yield from asyncio.sleep(0.1, loop=loop)
+	yield from asyncio.sleep(TIMEOUT/2, loop=loop)
 	yield from unit2.alert("my.dur.alert")
-	yield from asyncio.sleep(0.3, loop=loop)
+	yield from asyncio.sleep(TIMEOUT*3/2, loop=loop)
 	assert ncalls == 1
 	r1 = (yield from unit1.register_alert_async("my.dur.alert",alert_me, call_conv=CC_DICT, durable=True, ttl=1))
-	yield from asyncio.sleep(0.3, loop=loop)
+	yield from asyncio.sleep(TIMEOUT*3/2, loop=loop)
 	assert ncalls == 2
 
 @pytest.mark.run_loop
@@ -253,17 +254,17 @@ def test_alert_nondurable(unit1, unit2, loop):
 	r2 = (yield from unit2.register_alert_async("my.alert",alert_me, call_conv=CC_DICT))
 
 	yield from unit2.alert("my.alert")
-	yield from asyncio.sleep(0.3, loop=loop)
+	yield from asyncio.sleep(TIMEOUT*3/2, loop=loop)
 	assert ncalls == 2
 
 	# now verify that messages do get lost
 	yield from unit1.unregister_alert_async(r1)
 	yield from unit2.unregister_alert_async(r2)
 	yield from unit2.alert("my.alert")
-	yield from asyncio.sleep(0.3, loop=loop)
+	yield from asyncio.sleep(TIMEOUT*3/2, loop=loop)
 	assert ncalls == 2
 	r1 = (yield from unit1.register_alert_async("my.alert",alert_me, call_conv=CC_DICT))
-	yield from asyncio.sleep(0.3, loop=loop)
+	yield from asyncio.sleep(TIMEOUT*3/2, loop=loop)
 	assert ncalls == 2
 
 @pytest.mark.run_loop
@@ -275,13 +276,13 @@ def test_alert_stop(unit1, unit2, loop):
 	def sleep1():
 		nonlocal nhit
 		nhit += 1
-		yield from asyncio.sleep(0.1, loop=loop)
+		yield from asyncio.sleep(TIMEOUT/2, loop=loop)
 		return False
 	@asyncio.coroutine
 	def sleep2():
 		nonlocal nhit
 		nhit += 1
-		yield from asyncio.sleep(0.2, loop=loop)
+		yield from asyncio.sleep(TIMEOUT, loop=loop)
 		return False
 	yield from unit1.register_alert_async("my.sleep",sleep1, call_conv=CC_DICT)
 	yield from unit2.register_alert_async("my.sleep",sleep2, call_conv=CC_DICT)
@@ -289,7 +290,7 @@ def test_alert_stop(unit1, unit2, loop):
 		nonlocal ncall
 		ncall += 1
 		raise StopIteration
-	res = (yield from unit2.alert("my.sleep",_data="", callback=recv, timeout=0.5))
+	res = (yield from unit2.alert("my.sleep",_data="", callback=recv, timeout=TIMEOUT*5/2))
 	assert res == 1, res
 	assert nhit == 2, nhit
 	assert ncall == 1, ncall
@@ -307,7 +308,7 @@ def test_reg(unit1, unit2, loop):
 			assert d['app'] == unit2.app
 			rx += 1
 		# There may be others.
-	res = (yield from unit2.alert("qbroker.ping", callback=recv, timeout=0.2, call_conv=CC_DICT))
+	res = (yield from unit2.alert("qbroker.ping", callback=recv, timeout=TIMEOUT, call_conv=CC_DICT))
 	assert res >= 2
 	assert rx == 2
 
@@ -325,17 +326,17 @@ def test_alert_error(unit1, unit2, loop):
 	def recv1(d):
 		assert d.error.cls == "RuntimeError"
 		assert d.error.message == "dad"
-	res = (yield from unit2.alert("my.error1", _data="", callback=recv1, timeout=0.2))
+	res = (yield from unit2.alert("my.error1", _data="", callback=recv1, timeout=TIMEOUT))
 	error_me1.assert_called_with("")
 	assert res == 1
 
-	res = (yield from unit2.alert("my.error1", callback=recv1, call_conv=CC_DATA, timeout=0.2))
+	res = (yield from unit2.alert("my.error1", callback=recv1, call_conv=CC_DATA, timeout=TIMEOUT))
 	assert res == 0
 
 	def recv2(msg):
 		msg.raise_if_error()
 	with pytest.raises(MsgError):
-		yield from unit2.alert("my.error1", callback=recv2, timeout=0.2)
+		yield from unit2.alert("my.error1", callback=recv2, timeout=TIMEOUT)
 
 @pytest.mark.run_loop
 @asyncio.coroutine
