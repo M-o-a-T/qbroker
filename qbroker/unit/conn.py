@@ -29,7 +29,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 class DeadLettered(RuntimeError):
-	pass
+	def __str__(self):
+		return "DeadLettered:"+super().__str__()
 
 class _ch(object):
 	"""Helper object"""
@@ -92,7 +93,7 @@ class Connection(object):
 		d = {}
 		if alt is not None:
 			d["alternate-exchange"] = cfg['exchanges'][alt]
-		yield from ch.channel.exchange_declare(cfg['exchanges'][name], typ, auto_delete=False, passive=False, arguments=d)
+		yield from ch.channel.exchange_declare(cfg['exchanges'][name], typ, auto_delete=False, durable=True, passive=False, arguments=d)
 
 		if q is not None:
 			assert callback is not None
@@ -100,7 +101,7 @@ class Connection(object):
 			ttl = cfg['ttl'].get(name,0)
 			if ttl:
 				d["x-dead-letter-exchange"] = cfg['queues']['dead']
-				d["x-message-ttl"] = cfg['ttl'][name]
+				d["x-message-ttl"] = int(1000*cfg['ttl'][name])
 			ch.queue = (yield from ch.channel.queue_declare(cfg['queues'][name]+q, auto_delete=True, passive=False, exclusive=exclusive, arguments=d))
 			yield from ch.channel.basic_qos(prefetch_count=1,prefetch_size=0,connection_global=False)
 			logger.debug("Chan %s: read %s", ch.channel,cfg['queues'][name]+q)
@@ -132,7 +133,10 @@ class Connection(object):
 			msg = BaseMsg.load(msg,envelope,properties)
 			reply = msg.make_response()
 			reply_to = getattr(msg, 'reply_to',None)
-			reply.set_error(DeadLettered(envelope.exchange_name), envelope.routing_key, "reply")
+			exn = envelope.exchange_name
+			if exn.startswith("dead"):
+				exn = properties.headers['x-death'][0]['exchange']
+			reply.set_error(DeadLettered(exn), envelope.routing_key, "reply")
 			reply,props = reply.dump(self)
 			reply = self.codec.encode(reply)
 			yield from self.reply.channel.publish(reply, self.reply.exchange, reply_to, properties=props)
@@ -289,15 +293,19 @@ class Connection(object):
 		d = {}
 		if cfg['ttl']['rpc'] or rpc.ttl:
 			d["x-dead-letter-exchange"] = cfg['queues']['dead']
-			d["x-message-ttl"] = rpc.ttl if rpc.ttl else cfg['ttl']['rpc']
-		rpc.queue = (yield from rpc.channel.queue_declare(cfg['queues']['rpc']+rpc.name.replace('.','_'), auto_delete=not rpc.durable, passive=False, arguments=d))
-		logger.debug("Chan %s: bind %s %s %s", ch.channel,cfg['exchanges']['rpc'], rpc.name, rpc.queue['queue'])
-		yield from rpc.channel.queue_bind(rpc.queue['queue'], cfg['exchanges']['rpc'], routing_key=rpc.name)
+			d["x-message-ttl"] = int(1000*(rpc.ttl if rpc.ttl else cfg['ttl']['rpc']))
 		self.rpcs[rpc.name] = rpc
+		try:
+			rpc.queue = (yield from rpc.channel.queue_declare(cfg['queues']['rpc']+rpc.name, auto_delete=not rpc.durable, durable=rpc.durable, passive=False, arguments=d))
+			logger.debug("Chan %s: bind %s %s %s", ch.channel,cfg['exchanges']['rpc'], rpc.name, rpc.queue['queue'])
+			yield from rpc.channel.queue_bind(rpc.queue['queue'], cfg['exchanges']['rpc'], routing_key=rpc.name)
 
-		yield from rpc.channel.basic_qos(prefetch_count=1,prefetch_size=0,connection_global=False)
-		logger.debug("Chan %s: read %s", rpc.channel,rpc.queue['queue'])
-		yield from rpc.channel.basic_consume(queue_name=rpc.queue['queue'], callback=self._on_rpc, consumer_tag=rpc.uuid)
+			yield from rpc.channel.basic_qos(prefetch_count=1,prefetch_size=0,connection_global=False)
+			logger.debug("Chan %s: read %s", rpc.channel,rpc.queue['queue'])
+			yield from rpc.channel.basic_consume(queue_name=rpc.queue['queue'], callback=self._on_rpc, consumer_tag=rpc.uuid)
+		except BaseException:
+			del self.rpcs[rpc.name]
+			raise
 
 	@asyncio.coroutine
 	def unregister_rpc(self,rpc):
@@ -316,20 +324,37 @@ class Connection(object):
 	@asyncio.coroutine
 	def register_alert(self,rpc):
 		assert rpc.name not in self.alerts
-		n = rpc.name
+		dn = n = rpc.name
 		if rpc.name.endswith('.#'):
 			n = n[:-2]
+			dn = n+'_all_'
 		if len(n) > 1 and '#' in n:
 			raise RuntimeError("I won't find that")
 
-		ch = self.alert
-		cfg = self.unit().config['amqp']
-		logger.debug("Chan %s: bind %s %s %s", ch.channel,cfg['exchanges']['alert'], rpc.name, ch.exchange)
-		yield from ch.channel.queue_bind(ch.queue['queue'], ch.exchange, routing_key=rpc.name)
 		self.alerts[rpc.name] = rpc
-
 		if rpc.name.endswith('.#'):
 			self.alert_bc = True
+
+		try:
+			if rpc.durable:
+				if isinstance(rpc.durable,str):
+					dn = rpc.durable
+				ch = (yield from self.amqp.channel())
+				d = {}
+				if rpc.ttl is not None:
+					d["x-message-ttl"] = int(1000*rpc.ttl)
+				q = (yield from ch.queue_declare(dn, auto_delete=False, passive=False, exclusive=False, durable=True, arguments=d))
+				yield from ch.basic_consume(queue_name=q['queue'], callback=self._on_alert)
+			else:
+				ch = self.alert.channel
+				q = self.alert.queue
+			yield from ch.queue_bind(q['queue'], self.alert.exchange, routing_key=rpc.name)
+		except BaseException:
+			del self.alerts[rpc.name]
+			raise
+
+		rpc.ch = ch
+		rpc.q = q
 
 	@asyncio.coroutine
 	def unregister_alert(self,rpc):
@@ -338,9 +363,10 @@ class Connection(object):
 		else:
 			del self.alerts[rpc.name]
 		ch = self.alert
-		cfg = self.unit().config['amqp']
-		logger.debug("Chan %s: unbind %s %s %s", ch.channel,cfg['exchanges']['alert'], rpc.name, ch.exchange)
-		yield from ch.channel.queue_unbind(ch.queue['queue'], ch.exchange, routing_key=rpc.name)
+		if rpc.durable:
+			yield from rpc.ch.close()
+		else:
+			yield from rpc.ch.queue_unbind(rpc.q['queue'], ch.exchange, routing_key=rpc.name)
 
 	@asyncio.coroutine
 	def close(self):

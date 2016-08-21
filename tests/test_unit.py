@@ -86,25 +86,39 @@ def test_rpc_direct(unit1, unit2, loop):
 	res = (yield from unit2.rpc("my.call", "one",_uuid=unit1.uuid))
 	assert res == "foo one"
 	t = unit2.rpc("my.call", "No!", _uuid=unit2.uuid)
-	with pytest.raises(asyncio.TimeoutError):
+	try:
 		yield from asyncio.wait_for(t,timeout=0.5,loop=loop)
+	except asyncio.TimeoutError:
+		pass
+	except MsgError as exc:
+		assert exc.cls == "DeadLettered"
+		assert 'DeadLettered:rpc' == str(exc), str(exc)
+	else:
+		assert False,"did not error"
 
 @pytest.mark.run_loop
 @asyncio.coroutine
 def test_rpc_unencoded(unit1, unit2, loop):
-	call_me = Mock(side_effect=lambda : object())
+	ncalls = 0
+	def call_me():
+		nonlocal ncalls 
+		ncalls += 1
+		return object()
 	yield from unit1.register_rpc_async("my.call",call_me, call_conv=CC_DICT)
 	try:
 		r = unit2.rpc("my.call")
 		r = (yield from asyncio.wait_for(r, timeout=0.2, loop=loop))
 	except MsgError as exc:
-		assert False,"should not reply"
+		# message was rejected. Thus deadlettered.
+		assert exc.cls == "DeadLettered"
+		assert 'DeadLettered:rpc' == str(exc), str(exc)
 	except asyncio.TimeoutError:
 		pass
 	except Exception as exc:
 		assert False,exc
 	else:
 		assert False,r
+	assert ncalls == 1, ncalls
 
 def something_named(foo):
 	return "bar "+foo
@@ -202,6 +216,55 @@ def test_alert_no_data(unit1, unit2, loop):
 	res = (yield from unit2.alert("my.alert2", callback=recv2, call_conv=CC_DICT, timeout=0.2))
 	alert_me2.assert_called_with()
 	assert res == 1
+
+@pytest.mark.run_loop
+@asyncio.coroutine
+def test_alert_durable(unit1, unit2, loop):
+	ncalls = 0
+	def alert_me():
+		nonlocal ncalls
+		ncalls += 1
+	r1 = (yield from unit1.register_alert_async("my.dur.alert",alert_me, call_conv=CC_DICT, durable=True, ttl=1))
+	r2 = (yield from unit2.register_alert_async("my.dur.alert",alert_me, call_conv=CC_DICT, durable=True, ttl=1))
+
+	yield from unit2.alert("my.dur.alert")
+	yield from asyncio.sleep(0.3, loop=loop)
+	assert ncalls == 1
+
+	# Now check if this thing really is durable
+	yield from unit1.unregister_alert_async(r1)
+	yield from unit2.unregister_alert_async(r2)
+	yield from asyncio.sleep(0.1, loop=loop)
+	yield from unit2.alert("my.dur.alert")
+	yield from asyncio.sleep(0.3, loop=loop)
+	assert ncalls == 1
+	r1 = (yield from unit1.register_alert_async("my.dur.alert",alert_me, call_conv=CC_DICT, durable=True, ttl=1))
+	yield from asyncio.sleep(0.3, loop=loop)
+	assert ncalls == 2
+
+@pytest.mark.run_loop
+@asyncio.coroutine
+def test_alert_nondurable(unit1, unit2, loop):
+	ncalls = 0
+	def alert_me():
+		nonlocal ncalls
+		ncalls += 1
+	r1 = (yield from unit1.register_alert_async("my.alert",alert_me, call_conv=CC_DICT))
+	r2 = (yield from unit2.register_alert_async("my.alert",alert_me, call_conv=CC_DICT))
+
+	yield from unit2.alert("my.alert")
+	yield from asyncio.sleep(0.3, loop=loop)
+	assert ncalls == 2
+
+	# now verify that messages do get lost
+	yield from unit1.unregister_alert_async(r1)
+	yield from unit2.unregister_alert_async(r2)
+	yield from unit2.alert("my.alert")
+	yield from asyncio.sleep(0.3, loop=loop)
+	assert ncalls == 2
+	r1 = (yield from unit1.register_alert_async("my.alert",alert_me, call_conv=CC_DICT))
+	yield from asyncio.sleep(0.3, loop=loop)
+	assert ncalls == 2
 
 @pytest.mark.run_loop
 @asyncio.coroutine
@@ -304,7 +367,7 @@ def test_rpc_unroutable(unit1, unit2, loop):
 		res = (yield from unit2.rpc("my.non_routed.call"))
 	except MsgError as exc:
 		assert exc.cls == "DeadLettered"
-		assert 'rpc' == str(exc), str(exc)
+		assert 'DeadLettered:rpc' == str(exc), str(exc)
 	else:
 		assert False,"exception not called"
 	assert call_me.call_count == 0

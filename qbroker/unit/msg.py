@@ -150,6 +150,7 @@ class BaseMsg(_MsgPart):
 		props.user_id = conn.cfg['login']
 		props.content_type = conn.codec.CODEC
 		props.app_id = conn.unit().uuid
+		# props.delivery_mode = 2
 		if self.error is not None:
 			obj['error'] = self.error.dump()
 		if obj:

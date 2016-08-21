@@ -213,7 +213,7 @@ class ProtocolClient(object):
 				interaction._protocol = None
 		except BaseException as exc:
 			if f is not None and not f.done():
-				f.set_Exception(exc)
+				f.set_exception(exc)
 			raise
 		else:
 			if f is not None and not f.done():
@@ -223,7 +223,7 @@ class ProtocolClient(object):
 			return res
 		finally:
 			if f is not None and not f.done():
-				f.set(False) # pragma: no cover
+				f.set_result(False) # pragma: no cover
 			self.tasks.pop(id,None)
 			if conn is not None:
 				conn.close()

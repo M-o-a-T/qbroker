@@ -167,7 +167,14 @@ class Unit(object, metaclass=SyncFuncs):
 				@conn_register
 				def fn(…): pass
 
-			If connected, you must use the _async version.
+			Set @durable to True for delivery to a persistent queue, or to
+			a unique queue name. Note that this queue will never be deleted
+			by qbroker.
+
+			@ttl is in seconds.
+
+			If connected, you need to use the _async version.
+			(Or _sync or _gevent, if applicable)
 			"""
 		name = None
 		@asyncio.coroutine
