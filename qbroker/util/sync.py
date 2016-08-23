@@ -224,7 +224,7 @@ def setup(sync=False,gevent=False):
 		import threading
 		AioRunner = AioRunner()
 
-		def make_unit_sync(*a,**k):
+		def make_unit_sync(*args,**kwargs):
 			return AioRunner.run_async(qbroker.make_unit, *args,**kwargs)
 		qbroker.make_unit_sync = make_unit_sync
 	

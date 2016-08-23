@@ -1,3 +1,9 @@
+qbroker (0.16.1-2) unstable; urgency=medium
+
+  * Stupid var name error
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Tue, 23 Aug 2016 04:01:31 +0200
+
 qbroker (0.16.1-1) unstable; urgency=medium
 
   * Prefix durable alert queue names with something configurable and unique
