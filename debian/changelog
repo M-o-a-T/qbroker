@@ -1,3 +1,9 @@
+qbroker (0.16.1-1) unstable; urgency=medium
+
+  * Prefix durable alert queue names with something configurable and unique
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Tue, 23 Aug 2016 02:53:21 +0200
+
 qbroker (0.16.0-3) unstable; urgency=medium
 
   * Test fix: use configured exchange names when cleaning up pre-test.

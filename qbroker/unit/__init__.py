@@ -49,6 +49,7 @@ DEFAULT_CONFIG=dict(
 		),
 		queues=dict(
 			alert='alert_',# plus the unit UUID. Nonpersistent.
+			msg='msg.',# plus the routing key. Persistent alerts.
 			rpc='rpc_',	# plus the command name. Persistent.
 			reply='reply_',# plus the unit UUID
 			dead='dead',   # no add-on. Persistent. No TTL here!

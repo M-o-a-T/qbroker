@@ -329,18 +329,21 @@ class Connection(object):
 		dn = n = rpc.name
 		if rpc.name.endswith('.#'):
 			n = n[:-2]
-			dn = n+'_all_'
+			dn = n+'._all_'
 		if len(n) > 1 and '#' in n:
 			raise RuntimeError("I won't find that")
 
 		self.alerts[rpc.name] = rpc
 		if rpc.name.endswith('.#'):
 			self.alert_bc = True
+		ch = None
 
 		try:
 			if rpc.durable:
 				if isinstance(rpc.durable,str):
 					dn = rpc.durable
+				else:
+					dn = self.unit().config['amqp']['queues']['msg']+dn
 				ch = (yield from self.amqp.channel())
 				d = {}
 				if rpc.ttl is not None:
@@ -353,6 +356,8 @@ class Connection(object):
 			yield from ch.queue_bind(q['queue'], self.alert.exchange, routing_key=rpc.name)
 		except BaseException:
 			del self.alerts[rpc.name]
+			if ch is not None:
+				yield from ch.close()
 			raise
 
 		rpc.ch = ch
