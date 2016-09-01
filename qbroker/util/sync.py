@@ -73,7 +73,8 @@ class AioRunner:
 	def start(self, setup=None,teardown=None):
 		with self.lock:
 			if self._loop is not None:
-				self.run_async(setup)
+				if setup is not None:
+					self.run_async(setup)
 				if teardown is not None:
 					self.teardown.append(teardown)
 				self.started += 1
