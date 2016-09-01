@@ -111,7 +111,7 @@ class Unit(object, metaclass=SyncFuncs):
 		except ChannelClosed:
 			pass
 
-		self.close()
+		yield from self.close()
 	
 	## client
 
@@ -310,10 +310,18 @@ class Unit(object, metaclass=SyncFuncs):
 	## cleanup, less interesting (hopefully)
 
 	def __del__(self):
-		self.close(deleting=True)
+		self._kill_conn(deleting=True)
 
-	def close(self, deleting=False):
-		self._kill_conn(deleting=deleting)
+	@asyncio.coroutine
+	def close(self):
+		c,self.conn = self.conn,None
+		if c:
+			try:
+				yield from c.close()
+			except Exception:
+				logger.exception("closing connection")
+				c._kill()
+
 
 	def _kill_conn(self, deleting=False):
 		c,self.conn = self.conn,None

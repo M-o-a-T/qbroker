@@ -42,7 +42,7 @@ class mon:
 	@asyncio.coroutine
 	def start(self):
 		self.channel = (yield from u.conn.amqp.channel())
-		yield from self.channel.exchange_declare(self.name, self.typ, auto_delete=False, passive=False)
+		yield from self.channel.exchange_declare(self.name, self.typ, passive=True)
 		self.queue_name = 'mon_'+self.name+'_'+self.u.uuid
 		self.queue = (yield from self.channel.queue_declare(self.queue_name, auto_delete=True, passive=False, exclusive=True))
 		yield from self.channel.basic_qos(prefetch_count=1,prefetch_size=0,connection_global=False)
