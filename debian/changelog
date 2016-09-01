@@ -1,8 +1,9 @@
 qbroker (0.16.1-3) unstable; urgency=medium
 
+  * Bug fixes.
   * Add send-an-alert example
 
- -- Matthias Urlichs <matthias@urlichs.de>  Thu, 01 Sep 2016 13:47:23 +0200
+ -- Matthias Urlichs <matthias@urlichs.de>  Thu, 01 Sep 2016 13:45:32 +0200
 
 qbroker (0.16.1-2) unstable; urgency=medium
 

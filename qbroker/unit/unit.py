@@ -105,14 +105,14 @@ class Unit(object, metaclass=SyncFuncs):
 	def stop(self, rc=0):
 		if self.conn is None:
 			return
-
 		try:
 			yield from self.alert('qbroker.stop', uuid=self.uuid, exitcode=rc)
 		except ChannelClosed:
 			pass
 
-		yield from self.close()
-	
+		yield from self.conn.close()
+		self.close()
+
 	## client
 
 	@asyncio.coroutine
@@ -312,16 +312,8 @@ class Unit(object, metaclass=SyncFuncs):
 	def __del__(self):
 		self._kill_conn(deleting=True)
 
-	@asyncio.coroutine
 	def close(self):
-		c,self.conn = self.conn,None
-		if c:
-			try:
-				yield from c.close()
-			except Exception:
-				logger.exception("closing connection")
-				c._kill()
-
+		self._kill_conn()
 
 	def _kill_conn(self, deleting=False):
 		c,self.conn = self.conn,None
