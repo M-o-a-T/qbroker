@@ -37,6 +37,9 @@ import os
 import qbroker
 import sys
 
+import logging
+logger = logging.getLogger(__name__)
+
 # overwritten by setup(), if applicable
 aiogevent = None
 threading = None
