@@ -105,12 +105,12 @@ class Unit(object, metaclass=SyncFuncs):
 	def stop(self, rc=0):
 		if self.conn is None:
 			return
-
 		try:
 			yield from self.alert('qbroker.stop', uuid=self.uuid, exitcode=rc)
 		except ChannelClosed:
 			pass
 
+		yield from self.conn.close()
 		self.close()
 	
 	## client
