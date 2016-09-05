@@ -1,12 +1,15 @@
 QBroker is short for Quick Access Broker.
 
-QBroker is a minimal wrapper for asynchronous, debuggable RPC via AMQP.
-It uses Python 3.4 asyncio features and provides wrappers for use with
-native threads or gevent tasks.
+QBroker is Python library which provides an easy-to-use interface for asynchronous, debuggable RPC via AMQP.
+It uses Python 3.4 asyncio features and provides wrappers for use with native threads or gevent tasklets.
 
-Example scripts, including a monitor which can watch RPC calls and replies,
-are provided.
+Example scripts, including an event/RPC monitor, are provided.
 
-QBroker is written in Python. If you know JSON and AMQP, writing a server
-or client in a different language is reasonably straightforward.
+The QBroker data format is straightforward. Writing an adapter in a different programming language
+is straightforward, given JSON and AMQP libraries. You can add codecs for your classes, or replace
+JSON with another marshalling system.
 
+QBroker supports the time-to-live and dead-lettering extensions of RabbitMQ, but does not depend on them.
+Its support for monitoring does not rely on RabbitM's "firehose" tracing feature.
+
+QBroker supports (as-yet rudimentary) introspection.
