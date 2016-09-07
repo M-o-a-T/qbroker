@@ -95,7 +95,11 @@ class Connection(object):
 		d = {}
 		if alt is not None:
 			d["alternate-exchange"] = cfg['exchanges'][alt]
-		yield from ch.channel.exchange_declare(cfg['exchanges'][name], typ, auto_delete=False, durable=True, passive=False, arguments=d)
+		try:
+			yield from ch.channel.exchange_declare(cfg['exchanges'][name], typ, auto_delete=False, durable=True, passive=False, arguments=d)
+		except aioamqp.exceptions.ChannelClosed:
+			ch.channel = (yield from self.amqp.channel())
+			yield from ch.channel.exchange_declare(cfg['exchanges'][name], typ, passive=True)
 
 		if q is not None:
 			assert callback is not None
