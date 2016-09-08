@@ -1,3 +1,12 @@
+qbroker (0.17.0-1) unstable; urgency=medium
+
+  * Add async_sync and _gevent decorators
+
+    These wrap a synchronous / gevent function in a thread / tasklet
+    so that they return an asyncio future.
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Thu, 08 Sep 2016 11:39:18 +0200
+
 qbroker (0.16.4-3) unstable; urgency=medium
 
   * TODO done

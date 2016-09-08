@@ -36,6 +36,7 @@ Note that, unlike these functions, native asyncio calls the procedure directly:
 import os
 import qbroker
 import sys
+import functools
 
 import logging
 logger = logging.getLogger(__name__)
@@ -189,7 +190,7 @@ class AioRunner:
 				f.add_done_callback(done)
 
 		fx = futures.Future()
-		AioRunner.loop.call_soon_threadsafe(runner,fx)
+		self.loop.call_soon_threadsafe(runner,fx)
 		if _async:
 			return fx
 		else:
@@ -211,8 +212,10 @@ def setup(sync=False,gevent=False):
 	import asyncio
 
 	if gevent and not qbroker.loop:
-		global aiogevent
+		global aiogevent,_gevent
 		import aiogevent
+		import gevent as _gevent
+
 		asyncio.set_event_loop_policy(aiogevent.EventLoopPolicy())
 		qbroker.loop = asyncio.get_event_loop()
 
@@ -288,6 +291,33 @@ def gevent_maker(func):
 		else:
 			return aiogevent.yield_future(f)
 	return gevent_func
+
+def async_sync(proc):
+	"""Decorator to wrap a native proc for calling by async code"""
+	@functools.wraps(proc)
+	@asyncio.coroutine
+	def called(*a,**k):
+		def p(f):
+			try:
+				res = proc(*a,**k)
+			except Exception as exc:
+				AioRunner.loop.call_soon_threadsafe(f.set_exception,exc)
+			else:
+				AioRunner.loop.call_soon_threadsafe(f.set_result,res)
+
+		f = asyncio.Future(loop=AioRunner.loop)
+		t = threading.Thread(target=p, args=(f,))
+		t.start()
+		return (yield from f)
+	return called
+
+def async_gevent(proc):
+	"""Decorator to wrap a gevent proc for calling by async code"""
+	@functools.wraps(proc)
+	@asyncio.coroutine
+	def called(*a,**k):
+		return aiogevent.wrap_greenlet(_gevent.spawn(proc,*a,**k))
+	return called
 
 def await_sync(proc,*a,**k):
 	"""Helper function to wait for an async result from a native thread"""

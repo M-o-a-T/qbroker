@@ -15,6 +15,7 @@ import unittest
 
 from functools import partial
 from qbroker.unit import Unit
+from qbroker.util.sync import async_gevent
 from testsupport import unit,TIMEOUT,cfg
 import qbroker
 from traceback import print_exc
@@ -45,7 +46,7 @@ class TestPing(unittest.TestCase):
             self.q = None
         yield from self.unit.stop()
 
-    @asyncio.coroutine
+    @async_gevent
     def pling(self, data):
         return "plong"
 
