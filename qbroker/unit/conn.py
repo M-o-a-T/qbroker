@@ -98,7 +98,8 @@ class Connection(object):
 		try:
 			yield from ch.channel.exchange_declare(cfg['exchanges'][name], typ, auto_delete=False, durable=True, passive=False, arguments=d)
 		except aioamqp.exceptions.ChannelClosed as exc:
-			# TODO do this only when passive open is warranted
+			if exc.code != 406: # PRECONDITION_FAILED
+				raise
 			ch.channel = (yield from self.amqp.channel())
 			yield from ch.channel.exchange_declare(cfg['exchanges'][name], typ, passive=True)
 			logger.warning("passive: %s",repr(exc))
