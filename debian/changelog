@@ -1,3 +1,9 @@
+qbroker (0.16.4-2) unstable; urgency=medium
+
+  * add TODO
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Thu, 08 Sep 2016 02:02:47 +0200
+
 qbroker (0.16.4-1) unstable; urgency=medium
 
   * Retry creating an exchange: set "passive"

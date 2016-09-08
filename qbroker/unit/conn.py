@@ -97,9 +97,11 @@ class Connection(object):
 			d["alternate-exchange"] = cfg['exchanges'][alt]
 		try:
 			yield from ch.channel.exchange_declare(cfg['exchanges'][name], typ, auto_delete=False, durable=True, passive=False, arguments=d)
-		except aioamqp.exceptions.ChannelClosed:
+		except aioamqp.exceptions.ChannelClosed as exc:
+			# TODO do this only when passive open is warranted
 			ch.channel = (yield from self.amqp.channel())
 			yield from ch.channel.exchange_declare(cfg['exchanges'][name], typ, passive=True)
+			logger.warning("passive: %s",repr(exc))
 
 		if q is not None:
 			assert callback is not None
