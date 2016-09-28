@@ -16,8 +16,6 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 import weakref
 import asyncio
 import aioamqp
-import functools
-import json
 from collections.abc import Mapping
 
 from .msg import _RequestMsg,PollMsg,RequestMsg,BaseMsg
