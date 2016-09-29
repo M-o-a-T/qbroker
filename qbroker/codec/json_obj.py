@@ -99,7 +99,7 @@ class _time(object):
 		return dt.time(*a)
 
 class RemoteException(Exception):
-	def _init__(self,r,s):
+	def __init__(self,r,s):
 		self.r = r
 		self.s = s
 	def __str__(self):
