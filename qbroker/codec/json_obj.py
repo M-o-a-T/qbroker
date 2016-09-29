@@ -19,7 +19,7 @@ DEBUG=False
 type2cls = {}
 name2cls = {}
 def _reg(cls):
-	type2cls[cls.cls.__name__] = cls
+	type2cls[cls.cls.__module__+'.'+cls.cls.__name__] = cls
 	name2cls[cls.clsname] = cls
 	return cls
 
@@ -135,14 +135,13 @@ class Encoder(JSONEncoder):
 			separators=((', ', ': ') if DEBUG else (',', ':')))
 
 	def default(self, data):
-		if isinstance(data,BaseException):
-			obj = _exc
-		else:
-			obj = type2cls.get(data.__class__.__name__,None)
-		if obj is not None:
-			data = obj.encode(data)
-			data["_o"] = obj.clsname
-			return data
+		obj = None
+		for cls in data.__class__.__mro__:
+			obj = type2cls.get(cls.__module__+'.'+cls.__name__,None)
+			if obj is not None:
+				data = obj.encode(data)
+				data["_o"] = obj.clsname
+				return data
 
 		if hasattr(data,"_read"):
 			ci = (data._t.name,data._id)
