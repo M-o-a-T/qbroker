@@ -129,14 +129,16 @@ class Connection(object):
 	@asyncio.coroutine
 	def _on_dead_rpc(self, channel,body,envelope,properties):
 		try:
-			msg = get_codec(properties.content_type).decode(body)
+			codec = get_codec(properties.content_type)
+			msg = codec.decode(body)
 			msg = BaseMsg.load(msg,envelope,properties)
 			reply = msg.make_response()
 			reply_to = getattr(msg, 'reply_to',None)
-			exn = envelope.exchange_name
-			if exn.startswith("dead"):
-				exn = properties.headers['x-death'][0]['exchange']
-			reply.set_error(DeadLettered(exn), envelope.routing_key, "reply")
+			exc = envelope.exchange_name
+			if exc.startswith("dead"):
+				exc = properties.headers['x-death'][0]['exchange']
+			exc = DeadLettered(exc)
+			reply.set_error(exc, envelope.routing_key, "reply")
 			reply,props = reply.dump(self)
 			reply = self.codec.encode(reply)
 			yield from self.reply.channel.publish(reply, self.reply.exchange, reply_to, properties=props)
@@ -147,7 +149,8 @@ class Connection(object):
 	def _on_alert(self, channel,body,envelope,properties):
 		logger.debug("read alert message %s",envelope.delivery_tag)
 		try:
-			msg = get_codec(properties.content_type).decode(body)
+			codec = get_codec(properties.content_type)
+			msg = codec.decode(body)
 			msg = BaseMsg.load(msg,envelope,properties)
 			try:
 				rpc = self.alerts[msg.routing_key]
@@ -207,7 +210,8 @@ class Connection(object):
 	def _on_rpc(self, channel,body,envelope,properties):
 		logger.debug("read rpc message %s",envelope.delivery_tag)
 		try:
-			msg = get_codec(properties.content_type).decode(body)
+			codec = get_codec(properties.content_type)
+			msg = codec.decode(body)
 			msg = BaseMsg.load(msg,envelope,properties)
 			rpc = self.rpcs[msg.routing_key]
 			reply = msg.make_response()
@@ -236,7 +240,8 @@ class Connection(object):
 	def _on_reply(self, channel,body,envelope,properties):
 		logger.debug("read reply message %s",envelope.delivery_tag)
 		try:
-			msg = get_codec(properties.content_type).decode(body)
+			codec = get_codec(properties.content_type)
+			msg = codec.decode(body)
 			msg = BaseMsg.load(msg,envelope,properties)
 			f,req = self.replies[msg.correlation_id]
 			try:
