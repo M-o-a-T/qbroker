@@ -1,3 +1,15 @@
+qbroker (0.18.0-2) unstable; urgency=medium
+
+  * Merge
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Mon, 03 Oct 2016 06:23:50 +0200
+
+qbroker (0.18.0-1) unstable; urgency=medium
+
+  * Transmit Python errors natively.
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Mon, 03 Oct 2016 05:57:54 +0200
+
 qbroker (0.17.0-2) unstable; urgency=medium
 
   * missed passing the loop

@@ -25,9 +25,6 @@ from aioamqp.exceptions import ChannelClosed
 import logging
 logger = logging.getLogger(__name__)
 
-class _NOTGIVEN:
-	pass
-
 class Unit(object, metaclass=SyncFuncs):
 	"""The basic QBroker messenger."""
 	config = None # configuration data
