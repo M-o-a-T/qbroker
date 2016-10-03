@@ -1,3 +1,9 @@
+qbroker (0.17.0-2) unstable; urgency=medium
+
+  * missed passing the loop
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Mon, 03 Oct 2016 06:22:27 +0200
+
 qbroker (0.17.0-1) unstable; urgency=medium
 
   * Add async_sync and _gevent decorators

@@ -316,7 +316,7 @@ def async_gevent(proc):
 	@functools.wraps(proc)
 	@asyncio.coroutine
 	def called(*a,**k):
-		return aiogevent.wrap_greenlet(_gevent.spawn(proc,*a,**k))
+		return aiogevent.wrap_greenlet(_gevent.spawn(proc,*a,**k), loop=qbroker.loop)
 	return called
 
 def await_sync(proc,*a,**k):

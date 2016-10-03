@@ -64,7 +64,7 @@ class TestPing(unittest.TestCase):
 
     def test_wrap(self):
         j = gevent.spawn(self.helloer)
-        f = aiogevent.wrap_greenlet(j)
+        f = aiogevent.wrap_greenlet(j, loop=self.loop)
         self.loop.run_until_complete(f)
         r = f.result()
         j.join()
