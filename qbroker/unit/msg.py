@@ -17,9 +17,11 @@ import asyncio
 from time import time
 
 from . import CC_MSG,CC_DICT,CC_DATA
-from ..util import uuidstr
+from qbroker.util import uuidstr
 #from aioamqp.properties import Properties
 from qbroker.util import attrdict; Properties = attrdict
+from qbroker.codec.registry import BaseCodec, register_obj
+obj_codec = BaseCodec()
 
 class _NOTGIVEN:
 	pass
@@ -90,11 +92,18 @@ class _MsgPart(object, metaclass=FieldCollect):
 class MsgError(RuntimeError,_MsgPart):
 	"""Proxy for a remote error"""
 	fields = "status id part message cls"
+	exc = None
 
 	def __init__(self, data=None):
 		if data is not None:
 			for f,v in data.items():
 				setattr(self,fmap(f),v)
+
+	def dump(self):
+		"""Convert myself to a dict"""
+		if isinstance(self.err,bytes):
+			return self.err
+		return super().dump()
 
 	@property
 	def failed(self):
@@ -105,6 +114,18 @@ class MsgError(RuntimeError,_MsgPart):
 			return True
 		raise RuntimeError("Unknown error status: "+str(self.status)) # pragma: no cover
 	
+	def _load(self, props):
+		"""Load myself from a proplist"""
+		super()._load(props)
+
+		v = props.headers.get('err',_NOTGIVEN)
+		if v is not _NOTGIVEN:
+			exc = obj_codec.decode(v)
+			self.exc = exc
+			self.cls = exc.__class__.__name__
+			if getattr(self,'message',None) is None:
+				self.message = str(exc)
+
 	@classmethod
 	def build(cls, exc, eid,part, fail=False):
 		obj = cls()
@@ -116,11 +137,40 @@ class MsgError(RuntimeError,_MsgPart):
 		return obj
 
 	def __repr__(self):
+		if self.exc is not None:
+			return repr(self.exc)
 		return "%s(%s)" % (self.cls, repr(self.message))
 	def __str__(self):
+		if self.exc is not None:
+			return str(self.exc)
 		return self.message
 	def __hash__(self):
 		return id(self)
+
+@register_obj
+class _MsgError(object):
+	cls = MsgError
+	clsname = "m_err"
+
+	map = {'s':'status', 'i':'id', 'p':'part', 'm':'message', 'c':'cls', 'e': 'exc'}
+
+	@staticmethod
+	def encode(obj):
+		res = {}
+		for a,b in _MsgError.map.items():
+			v = getattr(obj,b,None)
+			if v is not None:
+				res[a] = v
+		return res
+
+	@staticmethod
+	def decode(**kv):
+		res = MsgError()
+		for a,b in _MsgError.map.items():
+			v = kv.get(a,None)
+			if v is not None:
+				setattr(res,b,v)
+		return res
 
 class BaseMsg(_MsgPart):
 	version = 1
@@ -139,7 +189,7 @@ class BaseMsg(_MsgPart):
 	def __repr__(self): # pragma: no cover
 		return "%s._load(%s)" % (self.__class__.__name__, repr(self.__dict__))
 
-	def dump(self,conn):
+	def dump(self,conn, codec=None):
 		props = Properties()
 		obj = super().dump()
 		for f in 'type message-id reply-to correlation-id'.split(' '):
@@ -152,7 +202,7 @@ class BaseMsg(_MsgPart):
 		props.app_id = conn.unit().uuid
 		# props.delivery_mode = 2
 		if self.error is not None:
-			obj['error'] = self.error.dump()
+			obj['error'] = obj_codec.encode(self.error)
 		if obj:
 			props.headers = obj
 
@@ -185,7 +235,7 @@ class BaseMsg(_MsgPart):
 		super(BaseMsg,obj)._load(props)
 		obj.data = msg
 		if 'error' in props.headers:
-			obj.error = MsgError(props.headers['error'])
+			obj.error = obj_codec.decode(props.headers['error'])
 		return obj
 
 	@property
@@ -194,6 +244,8 @@ class BaseMsg(_MsgPart):
 
 	def raise_if_error(self):
 		if self.error and self.error.failed:
+			if self.error.exc is not None: # error passed the codec
+				raise self.error.exc
 			raise self.error
 
 class _RequestMsg(BaseMsg):

@@ -6,124 +6,14 @@ import sys
 from time import mktime
 from json.encoder import JSONEncoder
 from json.decoder import JSONDecoder
-from qbroker.util import attrdict, TZ,UTC, format_dt
-import base64
-import datetime as dt
+from qbroker.util import attrdict
 from collections.abc import Mapping
+from .registry import type2cls,name2cls
 
 CODEC = "application/json+obj"
 DEFAULT = True
 
 DEBUG=False
-
-type2cls = {}
-name2cls = {}
-def _reg(cls):
-	type2cls[cls.cls.__module__+'.'+cls.cls.__name__] = cls
-	name2cls[cls.clsname] = cls
-	return cls
-
-@_reg
-class _binary(object):
-	"""A codec for bytes.
-		Try to convert to an utf-8 string; if not possible, use base64.a85."""
-	cls = bytes
-	clsname = "bin"
-
-	@staticmethod
-	def encode(obj):
-		## the string is purely for human consumption and therefore does not have a time zone
-		try:
-			obj = obj.decode('utf-8',errors='strict')
-		except Exception:
-			return {"b":base64.a85encode(obj).decode('utf-8'), "s":obj.decode('utf-8',errors='ignore')}
-		else:
-			return {"s":obj}
-
-	@staticmethod
-	def decode(b=None,s=None):
-		if b is None:
-			return s.encode('utf-8')
-		else:
-			return base64.a85decode(b)
-
-@_reg
-class _datetime(object):
-	cls = dt.datetime
-	clsname = "datetime"
-
-	@staticmethod
-	def encode(obj):
-		## the string is purely for human consumption and therefore does not have a time zone
-		return {"t":mktime(obj.timetuple()),"s":format_dt(obj)}
-
-	@staticmethod
-	def decode(t=None,s=None,a=None,k=None,**_):
-		if t:
-			return dt.datetime.utcfromtimestamp(t).replace(tzinfo=UTC).astimezone(TZ)
-		else: ## historic
-			assert a
-			return dt.datetime(*a).replace(tzinfo=TZ)
-
-@_reg
-class _date(object):
-	cls = dt.date
-	clsname = "date"
-
-	@staticmethod
-	def encode(obj):
-		return {"d":obj.toordinal(), "s":obj.strftime("%Y-%m-%d")}
-
-	@staticmethod
-	def decode(d=None,s=None,a=None,**_):
-		if d:
-			return dt.date.fromordinal(d)
-		## historic
-		return dt.date(*a)
-
-@_reg
-class _time(object):
-	cls = dt.time
-	clsname = "time"
-
-	@staticmethod
-	def encode(obj):
-		ou = obj.replace(tzinfo=UTC)
-		secs = ou.hour*3600+ou.minute*60+ou.second
-		return {"t":secs,"s":"%02d:%02d:%02d" % (ou.hour,ou.minute,ou.second)}
-
-	@staticmethod
-	def decode(t=None,s=None,a=None,k=None,**_):
-		if t:
-			return dt.datetime.utcfromtimestamp(t).time()
-		return dt.time(*a)
-
-class RemoteException(Exception):
-	def __init__(self,r,s):
-		self.r = r
-		self.s = s
-	def __str__(self):
-		return self.s
-	def __repr__(self):
-		return self.r
-
-@_reg
-class _exc(object):
-	cls = BaseException
-	clsname = "exc"
-
-	@staticmethod
-	def encode(obj):
-		if isinstance(obj,Exception):
-			return {"e":obj.__class__.__name__,"s":str(obj),"r":repr(obj)}
-		else:
-			return {"b":obj.__class__.__name__,"s":str(obj),"r":repr(obj)}
-
-	@staticmethod
-	def decode(b=None,e=None,r=None,s=None,**_):
-		if b is not None:
-			return getattr(__builtins__,b)()
-		return RemoteException(r,s)
 
 class Encoder(JSONEncoder):
 	def __init__(self,main=()):
@@ -135,13 +25,11 @@ class Encoder(JSONEncoder):
 			separators=((', ', ': ') if DEBUG else (',', ':')))
 
 	def default(self, data):
-		obj = None
-		for cls in data.__class__.__mro__:
-			obj = type2cls.get(cls.__module__+'.'+cls.__name__,None)
-			if obj is not None:
-				data = obj.encode(data)
-				data["_o"] = obj.clsname
-				return data
+		obj = type2cls.get(type(data),None)
+		if obj is not None:
+			data = obj.encode(data)
+			data["_o"] = obj.clsname
+			return data
 
 		if hasattr(data,"_read"):
 			ci = (data._t.name,data._id)
