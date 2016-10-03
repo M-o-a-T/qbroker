@@ -4,6 +4,34 @@ qbroker (0.18.0-1) unstable; urgency=medium
 
  -- Matthias Urlichs <matthias@urlichs.de>  Mon, 03 Oct 2016 05:57:54 +0200
 
+qbroker (0.17.0-1) unstable; urgency=medium
+
+  * Add async_sync and _gevent decorators
+
+    These wrap a synchronous / gevent function in a thread / tasklet
+    so that they return an asyncio future.
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Thu, 08 Sep 2016 11:39:18 +0200
+
+qbroker (0.16.4-3) unstable; urgency=medium
+
+  * TODO done
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Thu, 08 Sep 2016 02:05:31 +0200
+
+qbroker (0.16.4-2) unstable; urgency=medium
+
+  * add TODO
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Thu, 08 Sep 2016 02:02:47 +0200
+
+qbroker (0.16.4-1) unstable; urgency=medium
+
+  * Retry creating an exchange: set "passive"
+  * Fix Debian version number
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Thu, 08 Sep 2016 01:58:56 +0200
+
 qbroker (0.16.1-3) unstable; urgency=medium
 
   * Bug fixes.
