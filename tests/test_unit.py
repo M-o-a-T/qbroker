@@ -76,6 +76,27 @@ def test_rpc_basic(unit1, unit2, loop):
 	except MsgError as exc:
 		assert exc.cls == "DeadLettered"
 
+from qbroker.codec.registry import register_obj
+class TestError(Exception):
+	pass
+
+@pytest.mark.run_loop
+@asyncio.coroutine
+def test_rpc_error(unit1, unit2, loop):
+	def call_me():
+		import pdb;pdb.set_trace()
+		raise TestError("foo")
+	r1 = (yield from unit1.register_rpc_async("err.call",call_me, call_conv=CC_DICT))
+	try:
+		res = (yield from unit2.rpc("err.call"))
+	except TestError as exc:
+		import pdb;pdb.set_trace()
+		pass
+	except MsgError:
+		assert False, "MsgError raised instead of TestError"
+	else:
+		assert False, "No error raised"
+
 @pytest.mark.run_loop
 @asyncio.coroutine
 def test_rpc_direct(unit1, unit2, loop):
