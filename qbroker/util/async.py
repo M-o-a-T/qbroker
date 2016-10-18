@@ -64,9 +64,11 @@ class Main:
 
 	@asyncio.coroutine
 	def _run(self):
-		yield from self.at_start()
-		yield from self._sig.wait()
-		yield from self._at_stop()
+		try:
+			yield from self.at_start()
+			yield from self._sig.wait()
+		finally:
+			yield from self._at_stop()
 
 	def _tilt(self):
 		self.loop.remove_signal_handler(signal.SIGINT)

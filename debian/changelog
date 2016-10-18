@@ -1,3 +1,9 @@
+qbroker (0.18.1-1) unstable; urgency=medium
+
+  * main runner: always call stop handlers
+
+ -- Matthias Urlichs <smurf@noris.de>  Tue, 18 Oct 2016 14:52:50 +0200
+
 qbroker (0.18.0-2) unstable; urgency=medium
 
   * Merge
