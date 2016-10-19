@@ -51,7 +51,6 @@ def get_codec(name):
 				try:
 					codecs[m.CODEC] = m
 				except AttributeError:
-					logger.warn("Not a codec")
 					pass
 				else:
 					if getattr(m,'DEFAULT',False):
