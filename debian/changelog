@@ -1,8 +1,8 @@
-qbroker (0.18.2-1) unstable; urgency=medium
+qbroker (0.18.2-2) unstable; urgency=medium
 
   * missing import
 
- -- Matthias Urlichs <matthias@urlichs.de>  Wed, 09 Nov 2016 21:50:15 +0100
+ -- Matthias Urlichs <matthias@urlichs.de>  Wed, 09 Nov 2016 21:50:16 +0100
 
 qbroker (0.18.1-1) unstable; urgency=medium
 
