@@ -14,6 +14,9 @@ from collections import namedtuple
 
 from qbroker.util import TZ,UTC, format_dt, attrdict
 
+import logging
+logger = logging.getLogger(__name__)
+
 """\
 This module implements a registry for (de)coding arbitrary objects.
 It intentionally does not use native Python mechanisms.
@@ -130,9 +133,11 @@ class _exc(object):
 		n = obj.__class__.__module__ == "builtins", obj.__class__.__module__
 		x = obj.__reduce__()
 		def _enc(cls,a=None,k=None):
-			res = {"e" if isinstance(obj,Exception) else 'b': cls.__module__+'.'+cls.__name__, 'a':a, 'k':k}
+			res = {"e" if isinstance(obj,Exception) else 'b': cls.__module__+'.'+cls.__name__}
 			if a:
-				res['a'] = a
+				# res['a'] = a
+				for n,x in enumerate(a):
+					res['a'+str(n)]=x
 			if k:
 				res['k'] = k
 			res['r'] = repr(obj)
@@ -141,13 +146,22 @@ class _exc(object):
 		return _enc(*x)
 
 	@staticmethod
-	def decode(b=None,e=None,a=(),k={}, r=None,s=None):
+	def decode(b=None,e=None,a=(),k={}, r=None,s=None, **kv):
 		if b is not None:
 			assert e is None
 			e = b
 		exc = import_string(e)
-		if not isinstance(e,type) or not issubclass(e,BaseException):
+		if not isinstance(exc,type) or not issubclass(exc,BaseException):
 			raise RuntimeError("Tried to decode a non-exception",e)
+		if not a and 'a0' in kv:
+			n=0
+			a=[]
+			while True:
+				try:
+					a.append(kv.pop('a'+str(n)))
+				except KeyError:
+					break
+				n += 1
 		exc = exc(*a,**k)
 		if s is not None:
 			exc.__str = s

@@ -1,3 +1,9 @@
+qbroker (0.18.3-1) unstable; urgency=medium
+
+  * Transmit Python errors natively. For real.
+
+ -- Matthias Urlichs <smurf@noris.de>  Wed, 23 Nov 2016 12:26:32 +0100
+
 qbroker (0.18.2-3) unstable; urgency=medium
 
   * require six

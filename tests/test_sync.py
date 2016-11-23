@@ -13,6 +13,7 @@ import unittest
 from functools import partial
 from qbroker.unit import Unit
 from qbroker.util.sync import async_sync
+from qbroker.unit.conn import DeadLettered
 from testsupport import unit,TIMEOUT,cfg
 from qbroker.unit.msg import MsgError
 from traceback import print_exc
@@ -73,7 +74,7 @@ class TestPing(unittest.TestCase):
             plong = yield from asyncio.wait_for(u.rpc("plinnnnng"),1,loop=AioRunner.loop)
         except asyncio.TimeoutError:
             pass
-        except MsgError:
+        except DeadLettered:
             pass
         else:
             assert False, "did not raise an error"

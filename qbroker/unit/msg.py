@@ -134,6 +134,7 @@ class MsgError(RuntimeError,_MsgPart):
 		obj.part = part
 		obj.cls = exc.__class__.__name__
 		obj.message = str(exc)
+		obj.exc = exc
 		return obj
 
 	def __repr__(self):
