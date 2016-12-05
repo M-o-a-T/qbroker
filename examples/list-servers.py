@@ -31,7 +31,7 @@ u=Unit("test.client.list_servers", **load_cfg(cfg)['config'])
 def cb(data):
 	data['_broadcast']=True
 	pprint(data)
-	f = asyncio.ensure_future(u.rpc('qbroker.ping', _dest=data['uuid']))
+	f = asyncio.ensure_future(u.rpc('qbroker.ping', _uuid=data['uuid']))
 	def d(f):
 		try:
 			pprint(f.result())
