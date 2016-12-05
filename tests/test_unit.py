@@ -19,6 +19,7 @@ import asyncio
 from qbroker.unit import Unit, CC_DICT,CC_DATA,CC_MSG
 from testsupport import unit, TIMEOUT, cfg
 from qbroker.unit.msg import MsgError,AlertMsg
+from qbroker.unit.conn import  DeadLettered
 import unittest
 from unittest.mock import Mock
 
@@ -59,11 +60,11 @@ def test_rpc_basic(unit1, unit2, loop):
 	assert res == "foo one"
 	res = (yield from unit1.rpc("my.call", "two"))
 	assert res == "foo two"
-	with pytest.raises(MsgError):
+	with pytest.raises(TypeError):
 		res = (yield from unit1.rpc("my.call", x="two"))
 	res = (yield from unit1.rpc("my.call.x", x="three"))
 	assert res == "foo three"
-	with pytest.raises(MsgError):
+	with pytest.raises(TypeError):
 		res = (yield from unit1.rpc("my.call", y="duh"))
 	res = (yield from unit1.rpc("my.call.m", x="four"))
 	assert res == "foo four"
@@ -73,8 +74,27 @@ def test_rpc_basic(unit1, unit2, loop):
 		yield from asyncio.wait_for(t,timeout=TIMEOUT*5/2,loop=loop)
 	except asyncio.TimeoutError:
 		pass
-	except MsgError as exc:
-		assert exc.cls == "DeadLettered"
+	except DeadLettered as exc:
+		pass
+
+from qbroker.codec.registry import register_obj
+class TestError(Exception):
+	pass
+
+@pytest.mark.run_loop
+@asyncio.coroutine
+def test_rpc_error(unit1, unit2, loop):
+	def call_me():
+		raise TestError("foo")
+	r1 = (yield from unit1.register_rpc_async("err.call",call_me, call_conv=CC_DICT))
+	try:
+		res = (yield from unit2.rpc("err.call"))
+	except TestError as exc:
+		pass
+	except MsgError:
+		assert False, "MsgError raised instead of TestError"
+	else:
+		assert False, "No error raised"
 
 @pytest.mark.run_loop
 @asyncio.coroutine
@@ -88,8 +108,8 @@ def test_rpc_direct(unit1, unit2, loop):
 		yield from asyncio.wait_for(t,timeout=TIMEOUT*5/2,loop=loop)
 	except asyncio.TimeoutError:
 		pass
-	except MsgError as exc:
-		assert exc.cls == "DeadLettered"
+	except DeadLettered as exc:
+		#assert exc.cls == "DeadLettered"
 		assert 'DeadLettered:rpc' == str(exc), str(exc)
 	else:
 		assert False,"did not error"
@@ -106,9 +126,9 @@ def test_rpc_unencoded(unit1, unit2, loop):
 	try:
 		r = unit2.rpc("my.call")
 		r = (yield from asyncio.wait_for(r, timeout=TIMEOUT, loop=loop))
-	except MsgError as exc:
+	except DeadLettered as exc:
 		# message was rejected. Thus deadlettered.
-		assert exc.cls == "DeadLettered"
+		#assert exc.cls == "DeadLettered"
 		assert 'DeadLettered:rpc' == str(exc), str(exc)
 	except asyncio.TimeoutError:
 		pass
@@ -332,7 +352,7 @@ def test_alert_error(unit1, unit2, loop):
 
 	def recv2(msg):
 		msg.raise_if_error()
-	with pytest.raises(MsgError):
+	with pytest.raises(RuntimeError):
 		yield from unit2.alert("my.error1", callback=recv2, timeout=TIMEOUT)
 
 @pytest.mark.run_loop
@@ -350,8 +370,8 @@ def test_rpc_bad_params(unit1, unit2, loop):
 	yield from unit1.register_rpc_async("my.call",call_me, call_conv=CC_DATA)
 	try:
 		res = (yield from unit2.rpc("my.call", x="two"))
-	except MsgError as exc:
-		assert exc.cls == "TypeError"
+	except TypeError as exc:
+		#assert exc.cls == "TypeError"
 		assert "convert" in str(exc)
 	else:
 		assert False,"exception not called"
@@ -363,8 +383,8 @@ def test_rpc_unroutable(unit1, unit2, loop):
 	yield from unit1.register_rpc_async("my.call",call_me, call_conv=CC_DATA)
 	try:
 		res = (yield from unit2.rpc("my.non_routed.call"))
-	except MsgError as exc:
-		assert exc.cls == "DeadLettered"
+	except DeadLettered as exc:
+		#assert exc.cls == "DeadLettered"
 		assert 'DeadLettered:rpc' == str(exc), str(exc)
 	else:
 		assert False,"exception not called"
