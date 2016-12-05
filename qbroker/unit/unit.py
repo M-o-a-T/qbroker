@@ -33,7 +33,7 @@ class Unit(object, metaclass=SyncFuncs):
 	restarting = None
 	args = ()
 
-	def __init__(self, app, *, loop=None, **cfg):
+	def __init__(self, app, *, loop=None, hidden=False, **cfg):
 		"""\
 			Connect to an AMQP server. See qbroker.unit.DEFAULT_CONFIG for
 			all recognized parameters.
@@ -47,6 +47,8 @@ class Unit(object, metaclass=SyncFuncs):
 
 			You need to call .start() to actually initiate a connection.
 			"""
+
+		self.hidden = hidden
 
 		self._loop = loop or asyncio.get_event_loop()
 		self.app = app
@@ -66,15 +68,17 @@ class Unit(object, metaclass=SyncFuncs):
 		if args:
 			self.args = args
 
-		self.register_alert("qbroker.ping",self._alert_ping, call_conv=CC_DATA)
-		self.register_rpc("qbroker.ping", self._reply_ping)
-		self.register_alert("qbroker.uuid."+self.uuid, self._alert_ping, call_conv=CC_DATA)
-		self.register_rpc("qbroker.uuid."+self.uuid, self._reply_ping)
-		self.register_alert("qbroker.app."+self.app, self._alert_ping, call_conv=CC_DATA)
-		self.register_rpc("qbroker.app."+self.app, self._reply_ping)
+		if not self.hidden:
+			self.register_alert("qbroker.ping",self._alert_ping, call_conv=CC_DATA)
+			self.register_rpc("qbroker.ping", self._reply_ping)
+			self.register_alert("qbroker.uuid."+self.uuid, self._alert_ping, call_conv=CC_DATA)
+			self.register_rpc("qbroker.uuid."+self.uuid, self._reply_ping)
+			self.register_alert("qbroker.app."+self.app, self._alert_ping, call_conv=CC_DATA)
+			self.register_rpc("qbroker.app."+self.app, self._reply_ping)
 
 		yield from self._create_conn(_setup=_setup)
-		yield from self.alert('qbroker.restart' if restart else 'qbroker.start', uuid=self.uuid, app=self.app, args=args)
+		if not self.hidden:
+			yield from self.alert('qbroker.restart' if restart else 'qbroker.start', uuid=self.uuid, app=self.app, args=args)
 		self.restarting.set()
 	
 	@asyncio.coroutine
@@ -102,10 +106,11 @@ class Unit(object, metaclass=SyncFuncs):
 	def stop(self, rc=0):
 		if self.conn is None:
 			return
-		try:
-			yield from self.alert('qbroker.stop', uuid=self.uuid, exitcode=rc)
-		except ChannelClosed:
-			pass
+		if not self.hidden:
+			try:
+				yield from self.alert('qbroker.stop', uuid=self.uuid, exitcode=rc)
+			except ChannelClosed:
+				pass
 
 		yield from self.conn.close()
 		self.close()
