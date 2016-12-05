@@ -29,8 +29,7 @@ class Main:
 
 	def __init__(self, loop=None):
 		if loop is None:
-			loop = asyncio.new_event_loop()
-			asyncio.set_event_loop(loop)
+			loop = asyncio.get_event_loop()
 		self.loop = loop
 		self._sig = asyncio.Event(loop=loop)
 		self._cleanup = []
