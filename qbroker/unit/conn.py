@@ -27,8 +27,15 @@ import logging
 logger = logging.getLogger(__name__)
 
 class DeadLettered(RuntimeError):
+	def __init__(self, exchange,routing_key):
+		self.exchange = exchange
+		self.routing_key = routing_key
+
 	def __str__(self):
-		return "DeadLettered:"+super().__str__()
+		return "Dead: queue=%s route=%s" % (self.exchange, self.routing_key)
+
+	def __reduce__(self):
+		return (self.__class__,(self.exchange,self.routing_key),{})
 
 class _ch(object):
 	"""Helper object"""
@@ -144,7 +151,7 @@ class Connection(object):
 			exc = envelope.exchange_name
 			if exc.startswith("dead"):
 				exc = properties.headers['x-death'][0]['exchange']
-			exc = DeadLettered(exc)
+			exc = DeadLettered(exc, envelope.routing_key)
 			reply.set_error(exc, envelope.routing_key, "reply")
 			reply,props = reply.dump(self)
 			reply = self.codec.encode(reply)
