@@ -1,3 +1,12 @@
+qbroker (0.19.0-1) unstable; urgency=medium
+
+  * don't double-register the UUID channel
+  * Add hidden server mode
+  * fix server listing example
+  * add firehose example
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Mon, 05 Dec 2016 14:21:35 +0100
+
 qbroker (0.18.4-1) unstable; urgency=medium
 
   * Use the standard event loop in Run.
