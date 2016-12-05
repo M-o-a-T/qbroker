@@ -1,3 +1,9 @@
+qbroker (0.19.1-1) unstable; urgency=medium
+
+  * fix tests
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Mon, 05 Dec 2016 16:54:50 +0100
+
 qbroker (0.19.0-1) unstable; urgency=medium
 
   * don't double-register the UUID channel

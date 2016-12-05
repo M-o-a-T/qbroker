@@ -22,7 +22,10 @@ class Main(qbroker.util.async.Main):
 
 class TestMain(unittest.TestCase):
     def test_main(self):
-        m = Main()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(None)
+
+        m = Main(loop=loop)
         m.run()
         assert m.X == 1
         

@@ -19,7 +19,7 @@ import asyncio
 from qbroker.unit import Unit, CC_DICT,CC_DATA,CC_MSG
 from testsupport import unit, TIMEOUT, cfg
 from qbroker.unit.msg import MsgError,AlertMsg
-from qbroker.unit.conn import  DeadLettered
+from qbroker.unit.conn import DeadLettered
 import unittest
 from unittest.mock import Mock
 
@@ -110,7 +110,7 @@ def test_rpc_direct(unit1, unit2, loop):
 		pass
 	except DeadLettered as exc:
 		#assert exc.cls == "DeadLettered"
-		assert 'DeadLettered:rpc' == str(exc), str(exc)
+		assert str(exc).startswith("Dead: queue=rpc route=qbroker.uuid."), str(exc)
 	else:
 		assert False,"did not error"
 
@@ -129,7 +129,7 @@ def test_rpc_unencoded(unit1, unit2, loop):
 	except DeadLettered as exc:
 		# message was rejected. Thus deadlettered.
 		#assert exc.cls == "DeadLettered"
-		assert 'DeadLettered:rpc' == str(exc), str(exc)
+		assert str(exc) == "Dead: queue=rpc route=my.call", str(exc)
 	except asyncio.TimeoutError:
 		pass
 	except Exception as exc:
@@ -385,7 +385,7 @@ def test_rpc_unroutable(unit1, unit2, loop):
 		res = (yield from unit2.rpc("my.non_routed.call"))
 	except DeadLettered as exc:
 		#assert exc.cls == "DeadLettered"
-		assert 'DeadLettered:rpc' == str(exc), str(exc)
+		assert str(exc) == "Dead: queue=rpc route=my.non_routed.call", str(exc)
 	else:
 		assert False,"exception not called"
 	assert call_me.call_count == 0

@@ -34,12 +34,12 @@ class Main:
 		self._sig = asyncio.Event(loop=loop)
 		self._cleanup = []
 
-		self.loop.add_signal_handler(signal.SIGINT,self._tilt)
-		self.loop.add_signal_handler(signal.SIGTERM,self._tilt)
-
 	@asyncio.coroutine
 	def at_start(self):
 		"""Called after successful startup. Overrideable."""
+		self.loop.add_signal_handler(signal.SIGINT,self._tilt)
+		self.loop.add_signal_handler(signal.SIGTERM,self._tilt)
+
 		yield None
 
 	@asyncio.coroutine
