@@ -1,3 +1,9 @@
+qbroker (0.19.4-1) smurf; urgency=medium
+
+  * Work around strange coded error messages
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Sun, 30 Apr 2017 16:09:41 +0200
+
 qbroker (0.19.3-2) smurf; urgency=medium
 
   * update .gitignore

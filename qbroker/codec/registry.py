@@ -146,7 +146,11 @@ class _exc(object):
 		return _enc(*x)
 
 	@staticmethod
-	def decode(b=None,e=None,a=(),k={}, r=None,s=None, **kv):
+	def decode(b=None,e=None,a=None,k=None, r=None,s=None, **kv):
+		if a is None:
+			a = ()
+		if k is None:
+			k = {}
 		if b is not None:
 			assert e is None
 			e = b
