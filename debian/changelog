@@ -1,3 +1,9 @@
+qbroker (0.19.2-2) unstable; urgency=medium
+
+  * Fix testing
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Sun, 30 Apr 2017 15:02:55 +0200
+
 qbroker (0.19.2-1) unstable; urgency=medium
 
   * Fix naming durable alert queues

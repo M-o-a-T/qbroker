@@ -14,13 +14,19 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 ##BP
 
 import asyncio
+import os
 from qbroker.unit import make_unit, DEFAULT_CONFIG
 from qbroker.util import combine_dict
 
 TIMEOUT=0.5
 
 from qbroker.util.tests import load_cfg
-cfg = load_cfg("test.cfg")['config']
+CFG="test.cfg"
+for x in range(10):
+	if os.path.exists(CFG):
+		break
+	CFG=os.path.join(os.pardir,CFG)
+cfg = load_cfg(CFG)['config']
 cfg = combine_dict(cfg, DEFAULT_CONFIG)
 
 
