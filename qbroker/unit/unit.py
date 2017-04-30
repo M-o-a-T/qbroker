@@ -14,6 +14,7 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 ##BP
 
 import asyncio
+from traceback import print_exc
 from ..util import uuidstr, combine_dict
 from ..util.sync import SyncFuncs, sync_maker,gevent_maker
 from .msg import RequestMsg,PollMsg,AlertMsg
@@ -68,7 +69,7 @@ class Unit(object, metaclass=SyncFuncs):
 		if args:
 			self.args = args
 
-		if not self.hidden:
+		if not restart and not self.hidden:
 			self.register_alert("qbroker.ping",self._alert_ping, call_conv=CC_DATA)
 			self.register_rpc("qbroker.ping", self._reply_ping)
 			self.register_alert("qbroker.app."+self.app, self._alert_ping, call_conv=CC_DATA)
@@ -78,13 +79,17 @@ class Unit(object, metaclass=SyncFuncs):
 		yield from self._create_conn(_setup=_setup)
 		if not self.hidden:
 			yield from self.alert('qbroker.restart' if restart else 'qbroker.start', uuid=self.uuid, app=self.app, args=args)
-		self.restarting.set()
+		if not restart:
+			self.restarting.set()
+			self.restarting = None
 	
 	@asyncio.coroutine
 	def restart(self, t_min=10,t_inc=20,t_max=100):
 		"""Reconnect. This will not fail."""
-		while self.restarting is not None:
+		if self.restarting is not None:
 			yield from self.restarting.wait()
+			return
+		self.restarting = asyncio.Event(loop=self._loop)
 
 		try:
 			self.close()
@@ -99,8 +104,24 @@ class Unit(object, metaclass=SyncFuncs):
 				yield from asyncio.sleep(t_min, loop=self._loop)
 				t_min = min(t_min+t_inc, t_max)
 			else:
+				self.restarting.set()
+				self.restarting = None
 				return
 	
+	def restart_cb(self,f):
+		def done(ff):
+			if ff.cancelled():
+				return
+			try:
+				ff.result()
+			except Exception as exc:
+				print_exc()
+
+		if f.cancelled():
+			return
+		f = asyncio.ensure_future(self.restart(), loop=self._loop)
+		f.add_done_callback(done)
+
 	@asyncio.coroutine
 	def stop(self, rc=0):
 		if self.conn is None:
@@ -130,6 +151,9 @@ class Unit(object, metaclass=SyncFuncs):
 			_dest = 'qbroker.app.'+_dest
 		elif _uuid is not None:
 			_dest = 'qbroker.uuid.'+_uuid
+
+		while self.conn is None:
+			yield from self.restart()
 		res = (yield from self.conn.call(msg,dest=_dest))
 		res.raise_if_error()
 		return res.data
@@ -151,6 +175,8 @@ class Unit(object, metaclass=SyncFuncs):
 			_dest = 'qbroker.uuid.'+_dest
 		elif _uuid is not None:
 			_dest = 'qbroker.uuid.'+_uuid
+		while self.conn is None:
+			yield from self.restart()
 		res = (yield from self.conn.call(msg, dest=_dest, timeout=timeout))
 		return res
 		
@@ -335,4 +361,5 @@ class Unit(object, metaclass=SyncFuncs):
 		for d in self.alert_endpoints.values():
 			yield from conn.register_alert(d)
 		self.conn = conn
+		conn.amqp.when_disconnected.add_done_callback(self.restart_cb)
 

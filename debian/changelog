@@ -1,3 +1,9 @@
+qbroker (0.19.3-1) smurf; urgency=medium
+
+  * Merge restart
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Sun, 30 Apr 2017 15:12:43 +0200
+
 qbroker (0.19.2-2) unstable; urgency=medium
 
   * Fix testing

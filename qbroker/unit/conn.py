@@ -289,7 +289,14 @@ class Connection(object):
 			id = msg.message_id
 			self.replies[id] = (f,msg)
 		logger.debug("Send %s to %s: %s", dest, cfg['exchanges'][msg._exchange], data)
-		yield from getattr(self,msg._exchange).channel.publish(data, cfg['exchanges'][msg._exchange], dest, properties=props)
+		while True:
+			try:
+				yield from getattr(self,msg._exchange).channel.publish(data, cfg['exchanges'][msg._exchange], dest, properties=props)
+			except aioamqp.exceptions.ChannelClosed:
+				logger.warn("CLOSED sending %s to %s: %s", dest, cfg['exchanges'][msg._exchange], data)
+				yield from self.unit().restart()
+			else:
+				break
 		if timeout is None:
 			return
 		try:
@@ -307,7 +314,6 @@ class Connection(object):
 		ch = self.rpc
 		cfg = self.unit().config['amqp']
 		assert rpc.name not in self.rpcs
-		assert rpc.queue is None
 		rpc.channel = (yield from self.amqp.channel())
 		d = {}
 		if cfg['ttl']['rpc'] or rpc.ttl:

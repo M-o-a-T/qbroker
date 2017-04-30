@@ -22,7 +22,7 @@ import signal
 import logging
 logger = logging.getLogger(__name__)
 
-iscoroutinefunction = getattr(inspect,'iscoroutinefunction', lambda _:False)
+iscoroutine = getattr(inspect,'iscoroutine', lambda _:False)
 
 class Main:
 	"""Implement a bare-bones mainloop for asyncio."""
@@ -47,10 +47,9 @@ class Main:
 		"""Process cleanup code. Don't override."""
 		for fn,a,k in self._cleanup[::-1]:
 			try:
-				if inspect.isgeneratorfunction(fn) or iscoroutinefunction(fn):
-					yield from fn(*a,**k)
-				else:
-					fn(*a,**k)
+				fn = fn(*a,**k)
+				if inspect.isgenerator(fn) or iscoroutine(fn):
+					yield from fn
 			except Exception:
 				logger.exception("Cleanup: %s %s %s",fn,repr(a),repr(k))
 
