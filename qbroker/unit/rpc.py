@@ -57,7 +57,7 @@ class RPCservice(object):
 		self.fn = fn
 		self.name = name
 		self.call_conv = call_conv
-		self.durable = bool(durable)
+		self.durable = durable
 		self.uuid = uuidstr()
 		if ttl is not None:
 			self.ttl = ttl
