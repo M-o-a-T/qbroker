@@ -5,4 +5,3 @@ export PYBUILD_NAME=qbroker
 %:
 	dh $@ --with python3 --buildsystem=pybuild
 
-

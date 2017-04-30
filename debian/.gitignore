@@ -4,3 +4,4 @@
 /*.substvars
 /python-qbroker
 /python3-qbroker
+/debhelper-build-stamp

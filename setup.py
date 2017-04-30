@@ -57,6 +57,7 @@ class PyTest(TestCommand):
         #import here, cause outside the eggs aren't loaded
         import pytest
         errno = pytest.main(self.pytest_args)
+        os.unlink("test.log") # GAAH
         sys.exit(errno)
 
 long_description = read('README.rst')

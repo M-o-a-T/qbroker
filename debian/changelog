@@ -1,3 +1,10 @@
+qbroker (0.19.3-2) smurf; urgency=medium
+
+  * update .gitignore
+  * kill test.log file
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Sun, 30 Apr 2017 15:29:36 +0200
+
 qbroker (0.19.3-1) smurf; urgency=medium
 
   * Merge restart
