@@ -75,6 +75,8 @@ class _MsgPart(object, metaclass=FieldCollect):
 	
 	def _load(self, props):
 		"""Load myself from a proplist"""
+		if props.headers is None:
+			return
 		for f in self.fields:
 			v = props.headers.get(f,_NOTGIVEN)
 			if v is not _NOTGIVEN:
@@ -218,6 +220,8 @@ class BaseMsg(_MsgPart):
 	@staticmethod
 	def load(data,env,props):
 		t = props.type
+		if t is None:
+			t = 'alert' # message from non-qbroker
 		res = _types[t]._load(data,props)
 
 		for f in 'type message-id reply-to user-id timestamp content-type app-id correlation-id'.split(' '):
@@ -235,7 +239,7 @@ class BaseMsg(_MsgPart):
 		obj = cls()
 		super(BaseMsg,obj)._load(props)
 		obj.data = msg
-		if 'error' in props.headers:
+		if props.headers is not None and 'error' in props.headers:
 			obj.error = obj_codec.decode(props.headers['error'])
 		return obj
 
