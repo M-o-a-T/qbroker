@@ -1,3 +1,9 @@
+qbroker (0.19.5-1) smurf; urgency=medium
+
+  * Fix compatibility with non-qbroker (non-RPC) messages
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Tue, 04 Jul 2017 06:11:38 +0200
+
 qbroker (0.19.4-1) smurf; urgency=medium
 
   * Work around strange coded error messages
