@@ -1,3 +1,4 @@
 aioamqp
 pytz
 six
+yaml
