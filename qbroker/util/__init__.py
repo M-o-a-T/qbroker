@@ -18,6 +18,7 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 from base64 import b64encode
 from collections.abc import Mapping
 from importlib import import_module
+from datetime import datetime
 
 import pytz
 UTC = pytz.UTC
@@ -110,10 +111,11 @@ class _StaticMethodType(_ClassMethodType):
 
 # Default timeout for the cache.
 def format_dt(value, format='%Y-%m-%d %H:%M:%S'):
-	try:
-		return value.astimezone(TZ).strftime(format)
-	except ValueError: ## naïve time: assume UTC
-		return value.replace(tzinfo=UTC).astimezone(TZ).strftime(format)
+	if isinstance(value,(int,float)):
+		value = datetime.utcfromtimestamp(value)
+	if value.tzinfo is None:
+		value = value.replace(tzinfo=UTC)
+	return value.astimezone(TZ).strftime(format)
 
 def exported_classmethod(_fn=None,**attrs):
 	"""\

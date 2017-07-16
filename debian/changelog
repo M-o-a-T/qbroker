@@ -1,3 +1,9 @@
+qbroker (0.20.0-1) smurf; urgency=medium
+
+  * format_dt: accept timestamps, drop error 
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Sun, 16 Jul 2017 18:14:35 +0200
+
 qbroker (0.19.5-1) smurf; urgency=medium
 
   * Fix compatibility with non-qbroker (non-RPC) messages
