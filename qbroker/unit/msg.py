@@ -17,14 +17,11 @@ import asyncio
 from time import time
 
 from . import CC_MSG,CC_DICT,CC_DATA
-from qbroker.util import uuidstr
+from qbroker.util import uuidstr, _NOTGIVEN
 #from aioamqp.properties import Properties
 from qbroker.util import attrdict; Properties = attrdict
 from qbroker.codec.registry import BaseCodec, register_obj
 obj_codec = BaseCodec()
-
-class _NOTGIVEN:
-	pass
 
 _types = {}
 _fmap = {

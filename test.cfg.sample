@@ -7,3 +7,4 @@ config:
       virtualhost: /test
     handlers:
       dead: 1
+      debug: 1

@@ -1,3 +1,9 @@
+qbroker (0.21.0-1) smurf; urgency=medium
+
+  * Add a basic debugger back-end
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Wed, 19 Jul 2017 14:33:29 +0200
+
 qbroker (0.20.0-1) smurf; urgency=medium
 
   * format_dt: accept timestamps, drop error 

@@ -18,7 +18,7 @@ from traceback import print_exc
 from ..util import uuidstr, combine_dict
 from ..util.sync import SyncFuncs, sync_maker,gevent_maker
 from .msg import RequestMsg,PollMsg,AlertMsg
-from .rpc import CC_MSG,CC_DATA
+from .rpc import CC_MSG,CC_DATA,CC_DICT
 from . import DEFAULT_CONFIG
 from collections.abc import Mapping
 from aioamqp.exceptions import ChannelClosed
@@ -33,6 +33,7 @@ class Unit(object, metaclass=SyncFuncs):
 	uuid = None # my UUID
 	restarting = None
 	args = ()
+	debug = None
 
 	def __init__(self, app, *, loop=None, hidden=False, **cfg):
 		"""\
@@ -60,6 +61,10 @@ class Unit(object, metaclass=SyncFuncs):
 		self.rpc_endpoints = {}
 		self.alert_endpoints = {}
 
+		if self.config['amqp']['handlers']['debug']:
+			from .debug import Debugger
+			self.debug = Debugger(self)
+
 	@asyncio.coroutine
 	def start(self, *args, restart=False, _setup=None):
 		"""Connect. This may fail."""
@@ -74,6 +79,7 @@ class Unit(object, metaclass=SyncFuncs):
 			self.register_rpc("qbroker.ping", self._reply_ping)
 			self.register_alert("qbroker.app."+self.app, self._alert_ping, call_conv=CC_DATA)
 			self.register_rpc("qbroker.app."+self.app, self._reply_ping)
+			self.register_rpc("qbroker.debug."+self.app, self._reply_debug, call_conv=CC_DICT)
 			# uuid: done in conn setup
 
 		yield from self._create_conn(_setup=_setup)
@@ -333,6 +339,18 @@ class Unit(object, metaclass=SyncFuncs):
 			rpc=list(self.rpc_endpoints.keys()),
 			alert=list(self.alert_endpoints.keys()),
 			)
+		
+	@asyncio.coroutine
+	def _reply_debug(self,**data):
+		try:
+			return dict(result=(yield from self.debug.run(**data)))
+		except BaseException as exc:
+			return dict(error=exc)
+
+	def debug_env(self, **data):
+		if self.debug is None:
+			return
+		self.debug.env.update(data)
 		
 	## cleanup, less interesting (hopefully)
 

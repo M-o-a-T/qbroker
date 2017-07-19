@@ -56,6 +56,7 @@ DEFAULT_CONFIG=dict(
 		),
 		handlers=dict(
 			dead=False, # add a handler for dead messages
+			debug=False, # add code to debug the connection
 		),
 		ttl=dict(
 			rpc=10,

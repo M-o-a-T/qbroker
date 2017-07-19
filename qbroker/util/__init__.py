@@ -25,6 +25,9 @@ UTC = pytz.UTC
 with open("/etc/localtime", 'rb') as tzfile:
 	TZ = pytz.tzfile.build_tzinfo(str('local'), tzfile)
 
+class _NOTGIVEN:
+	pass
+
 def uuidstr(u=None):
 	if u is None:
 		import uuid
