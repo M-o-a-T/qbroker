@@ -63,7 +63,7 @@ class Unit(object, metaclass=SyncFuncs):
 
 		if self.config['amqp']['handlers']['debug']:
 			from .debug import Debugger
-			self.debug = Debugger(self)
+			self.debug = Debugger()
 
 	@asyncio.coroutine
 	def start(self, *args, restart=False, _setup=None):
@@ -342,10 +342,7 @@ class Unit(object, metaclass=SyncFuncs):
 		
 	@asyncio.coroutine
 	def _reply_debug(self,**data):
-		try:
-			return dict(result=(yield from self.debug.run(**data)))
-		except BaseException as exc:
-			return dict(error=exc)
+		return (yield from self.debug.run(**data))
 
 	def debug_env(self, **data):
 		if self.debug is None:

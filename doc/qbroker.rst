@@ -173,3 +173,50 @@ specialized routing keys. Specifically:
 
   Read by all instances with that exact app name.
 
+* qbroker.debug.APP.NAME
+
+  Call code to debug your application. See next section.
+
+---------
+Debugging
+---------
+
+`QBroker` supports hooks for debugging your code. 
+
+Enabling debugging
+------------------
+
+In your configuration, set cfg['amqp']['handlers']['debug'] to something
+Python considers to be true.
+
+Usage
+-----
+
+RPC calls to ``qbroker.debug.YOUR.APP.NAME`` will return the command's
+result, whatever that is. Exceptions will be propagated.
+
+A call without arguments will return a hash of available methods with
+their docstring. Otherwise, the method's name is supplied in the "cmd"
+parameter.
+
+The debug object contains an environment which is initally empty. You may
+add arbitrary values by using the connection's ``debug_env`` method.
+
+There are two predefined methods:
+
+* ping
+
+  simply returns "pong"
+
+* exec
+
+  Evaluates the code passed in the ``code`` argument.
+
+  ``mode`` can be set to "single" to evaluate a statement instead of an
+  expression, or "exec" to compile a code block. All other arguments are
+  available to the statement, as local variables. Non-local variables which
+  your code sets are persistent.
+
+You can monkey-patch the debugger to add your own methods; simply name them
+"run_" plus the method's name.
+

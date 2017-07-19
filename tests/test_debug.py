@@ -44,10 +44,23 @@ def _unit(name,loop):
 @asyncio.coroutine
 def test_debug(unit1, unit2, loop):
 	unit1.debug_env(foo="bar")
+	res = (yield from unit2.rpc("qbroker.debug.test.one"))
+	assert set(res) == set(('eval','ping'))
+	assert 'pong' in res['ping']
+	with pytest.raises(RuntimeError):
+		res = (yield from unit2.rpc("qbroker.debug.test.one", foo="bar"))
 	res = (yield from unit2.rpc("qbroker.debug.test.one", cmd="ping"))
-	assert res == {'result':"pong"}
+	assert res == "pong"
 	res = (yield from unit2.rpc("qbroker.debug.test.one", cmd="eval",code="foo"))
-	assert res == {'result':"bar"}
+	assert res == "bar"
 	res = (yield from unit2.rpc("qbroker.debug.test.one", cmd="eval",code="baz",baz="quux"))
-	assert res == {'result':"quux"}
+	assert res == "quux"
+	res = (yield from unit2.rpc("qbroker.debug.test.one", cmd="eval",code="what='ever'",mode="single",what="duh"))
+	assert res in (None,"")
+	with pytest.raises(NameError):
+		res = (yield from unit2.rpc("qbroker.debug.test.one", cmd="eval",code="what"))
+	res = (yield from unit2.rpc("qbroker.debug.test.one", cmd="eval",code="what='ever'",mode="single"))
+	assert res in (None,"")
+	res = (yield from unit2.rpc("qbroker.debug.test.one", cmd="eval",code="what"))
+	assert res == "ever"
 

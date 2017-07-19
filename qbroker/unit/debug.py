@@ -15,8 +15,6 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 
 import asyncio
 import inspect
-import weakref
-from ..util.weak import OptWeakValueDictionary
 
 import logging
 logger = logging.getLogger(__name__)
@@ -24,30 +22,38 @@ logger = logging.getLogger(__name__)
 class Debugger(object):
 	"""QBroker insert for debugging."""
 
-	def __init__(self, conn):
-		self.conn = weakref.ref(conn)
-		self.env = OptWeakValueDictionary()
+	def __init__(self):
+		self.env = {}
 
 	@asyncio.coroutine
 	def run(self, cmd=None, **args):
 		"""Connect. This may fail."""
 
 		if cmd is None:
-			return dict((x[4:],x.__doc__) for x in dir(self) if x.startswith("run_"))
-		conn = self.conn()
-		return (yield from getattr(self,'run_'+cmd)(conn=conn, **args))
+			if args:
+				raise RuntimeError("Need 'cmd' parameter")
+			return dict((x[4:],getattr(self,x).__doc__) for x in dir(self) if x.startswith("run_"))
+		return (yield from getattr(self,'run_'+cmd)(**args))
 
 	@asyncio.coroutine
-	def run_eval(self,conn, code=None, **args):
-		res = eval(code,dict(self.env),args)
+	def run_eval(self, code=None, mode="eval", **args):
+		"""Evaluate @code (string). @mode may be 'exec', 'single' or 'eval' (default).
+		    All other arguments are used as local variables.
+			Non-local values are persistent.
+		    """
+		ed = dict(self.env)
+		code = compile(code,"(debug)",mode)
+		loc = args.copy()
+		res = eval(code, self.env,loc)
 		if inspect.iscoroutine(res):
 			res = yield from res
+		for k,v in loc.items():
+			if k not in args:
+				self.env[k] = v
 		return res
 	
 	@asyncio.coroutine
-	def run_ping(self,conn):
+	def run_ping(self):
+		"""Return 'pong'"""
 		return "pong"
-
-class _NOTGIVEN:
-	pass
 
