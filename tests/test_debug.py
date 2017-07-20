@@ -49,6 +49,8 @@ def test_debug(unit1, unit2, loop):
 	assert 'pong' in res['ping']
 	with pytest.raises(RuntimeError):
 		res = (yield from unit2.rpc("qbroker.debug.test.one", foo="bar"))
+	with pytest.raises(SyntaxError):
+		yield from unit2.rpc("qbroker.debug.test.one",cmd="eval",code="blubb(")
 	res = (yield from unit2.rpc("qbroker.debug.test.one", cmd="ping"))
 	assert res == "pong"
 	res = (yield from unit2.rpc("qbroker.debug.test.one", cmd="eval",code="foo"))

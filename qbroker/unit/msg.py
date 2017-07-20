@@ -22,6 +22,7 @@ from qbroker.util import uuidstr, _NOTGIVEN
 from qbroker.util import attrdict; Properties = attrdict
 from qbroker.codec.registry import BaseCodec, register_obj
 obj_codec = BaseCodec()
+obj_codec.code_lists = 2
 
 _types = {}
 _fmap = {

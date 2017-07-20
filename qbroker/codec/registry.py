@@ -219,6 +219,8 @@ class BaseCodec(object):
 		objects with multiple references.
 		"""
 
+	code_lists = 0 # encode all lists
+
 	def _encode(self, data, objcache,objref, p=None,off=None):
 		# @objcache: dict: id(obj) => (seqnum,encoded,selfref,data)
 		#            `encoded` will be set to the encoded object so that
@@ -274,7 +276,9 @@ class BaseCodec(object):
 
 			# If a list is at top level or contains references, store as
 			# a dict because we need to add ref fields
-			if len(objref) != n or p is None:
+			if self.code_lists or len(objref) != n or p is None:
+				if self.code_lists>1:
+					res = dict(('l_'+str(k),v) for k,v in enumerate(res))
 				res = { '_o':'LIST','_d':res }
 
 		else:
@@ -411,9 +415,19 @@ class BaseCodec(object):
 				if oid is not None:
 					objcache[oid] = res
 				k = 0
-				for v in data['_d']:
-					res.append(self._decode(v,objcache,objtodo, res,k))
-					k += 1
+				d = data['_d']
+				if isinstance(d,(list,tuple)):
+					for v in d:
+						res.append(self._decode(v,objcache,objtodo, res,k))
+						k += 1
+				else:
+					try:
+						while True:
+							res.append(self._decode(d['l_'+str(k)],objcache,objtodo, res,k))
+							k += 1
+					except KeyError:
+						pass
+
 				return res
 			
 			res = {}
