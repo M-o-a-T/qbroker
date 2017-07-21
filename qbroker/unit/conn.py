@@ -214,8 +214,12 @@ class Connection(object):
 					logger.exception("error on alert %s: %s", envelope.delivery_tag, body)
 
 		except Exception as exc:
-			logger.exception("problem with rpc %s: %s", envelope.delivery_tag, body)
-			yield from self.alert.channel.basic_reject(envelope.delivery_tag)
+			try:
+				yield from self.alert.channel.basic_reject(envelope.delivery_tag)
+			except Exception as exc:
+				logger.exception("problem with rpc reject %s: %s", envelope.delivery_tag, body)
+			else:
+				logger.exception("problem with rpc %s: %s", envelope.delivery_tag, body)
 		else:
 			logger.debug("ack rpc %s",envelope.delivery_tag)
 			yield from channel.basic_client_ack(envelope.delivery_tag)
@@ -244,11 +248,19 @@ class Connection(object):
 			reply = self.codec.encode(reply)
 			yield from channel.publish(reply, self.reply.exchange, msg.reply_to, properties=props)
 		except Exception as exc:
-			logger.exception("problem with rpc %s: %s", envelope.delivery_tag, body)
-			yield from channel.basic_reject(envelope.delivery_tag)
+			try:
+				yield from channel.basic_reject(envelope.delivery_tag)
+			except Exception as exc:
+				logger.exception("problem with rpc reject %s: %s", envelope.delivery_tag, body)
+			else:
+				logger.exception("problem with rpc %s: %s", envelope.delivery_tag, body)
 		else:
-			logger.debug("ack rpc %s",envelope.delivery_tag)
-			yield from channel.basic_client_ack(envelope.delivery_tag)
+			try:
+				yield from channel.basic_client_ack(envelope.delivery_tag)
+			except Exception as exc:
+				logger.exception("problem with rpc ack: %s", envelope.delivery_tag)
+			else:
+				logger.debug("acked rpc %s",envelope.delivery_tag)
 
 	@asyncio.coroutine
 	def _on_reply(self, channel,body,envelope,properties):
