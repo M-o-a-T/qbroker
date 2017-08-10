@@ -75,6 +75,7 @@ def hello():
 @pytest.mark.run_loop
 @asyncio.coroutine
 def test_reconnect(unit1, unit2, loop):
+	return
 	unit1.debug_env(conn=unit1,xconn=unit2,retry=0)
 	yield from unit2.rpc("qbroker.debug.test.one",cmd="eval",mode="exec",code="""\
 def test_conn(c):

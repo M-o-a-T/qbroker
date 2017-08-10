@@ -308,29 +308,30 @@ class Connection(object):
 			self.replies[id] = (f,msg)
 		logger.debug("Send %s to %s: %s", dest, cfg['exchanges'][msg._exchange], data)
 		err = None
-		while retries >= 0:
-			retries -= 1
-			while True:
+		try:
+			while retries >= 0:
+				retries -= 1
+				while True:
+					try:
+						yield from getattr(self,msg._exchange).channel.publish(data, cfg['exchanges'][msg._exchange], dest, properties=props)
+					except aioamqp.exceptions.ChannelClosed:
+						logger.warn("CLOSED sending %s to %s: %s", dest, cfg['exchanges'][msg._exchange], data)
+						yield from self.unit().restart()
+					else:
+						break
+				if timeout is None:
+					return
 				try:
-					yield from getattr(self,msg._exchange).channel.publish(data, cfg['exchanges'][msg._exchange], dest, properties=props)
-				except aioamqp.exceptions.ChannelClosed:
-					logger.warn("CLOSED sending %s to %s: %s", dest, cfg['exchanges'][msg._exchange], data)
-					yield from self.unit().restart()
-				else:
-					break
-			if timeout is None:
-				return
-			try:
-				yield from asyncio.wait_for(f,timeout, loop=self._loop)
-			except asyncio.TimeoutError as exc:
-				if err is None:
-					err = exc
-				if isinstance(msg,PollMsg):
-					if msg.replies > 0 or retries < 0:
-						return msg.replies
-				raise # pragma: no cover
+					yield from asyncio.wait_for(f,timeout, loop=self._loop)
+				except asyncio.TimeoutError as exc:
+					if err is None:
+						err = exc
+					if isinstance(msg,PollMsg):
+						if msg.replies > 0 or retries < 0:
+							return msg.replies
+					raise # pragma: no cover
 		finally:
-			del self.replies[id]
+			self.replies.pop(msg.message_id,None)
 		if err is not None:
 			raise err
 		return f.result()

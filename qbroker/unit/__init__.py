@@ -65,6 +65,7 @@ DEFAULT_CONFIG=dict(
 			rpc=15,
 			poll=30,
 		),
+		retries=dict(),
 	))
 
 @asyncio.coroutine
