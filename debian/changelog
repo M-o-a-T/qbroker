@@ -1,3 +1,10 @@
+qbroker (0.30.2-5) smurf; urgency=medium
+
+  * Travis: Python 3.4 does no longer work
+    because pytest_asyncio now requires py3.5.
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Thu, 10 Aug 2017 12:06:53 +0200
+
 qbroker (0.30.2-4) smurf; urgency=medium
 
   * Travis: fix pyyaml requirement
