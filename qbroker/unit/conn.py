@@ -181,6 +181,7 @@ class Connection(object):
 					rpc = self.alerts.get(n+'.#',None)
 					if rpc is not None:
 						break
+			msg.codec = codec
 			if rpc.call_conv == CC_DICT:
 				a=(); k=msg.data
 				if not isinstance(k,Mapping):
@@ -204,8 +205,14 @@ class Connection(object):
 						return
 					reply = msg.make_response()
 					reply.data = data
-				reply,props = reply.dump(self)
-				reply = self.codec.encode(reply)
+
+				codec = msg.codec
+				if codec is None:
+					codec = self.codec
+				elif isinstance(codec,str):
+					codec = get_codec(codec)
+				reply,props = reply.dump(self, codec=codec)
+				reply = codec.encode(reply)
 				yield from self.reply.channel.publish(reply, self.reply.exchange, reply_to, properties=props)
 			else:
 				try:
@@ -231,6 +238,7 @@ class Connection(object):
 			codec = get_codec(properties.content_type)
 			msg = codec.decode(body)
 			msg = BaseMsg.load(msg,envelope,properties)
+			msg.codec = codec
 			rpc = self.rpcs[msg.routing_key]
 			reply = msg.make_response()
 			try:
@@ -244,8 +252,14 @@ class Connection(object):
 			except Exception as exc:
 				logger.exception("error on rpc %s: %s", envelope.delivery_tag, body)
 				reply.set_error(exc, rpc.name,"reply")
-			reply,props = reply.dump(self)
-			reply = self.codec.encode(reply)
+
+			codec = msg.codec
+			if codec is None:
+				codec = self.codec
+			elif isinstance(codec,str):
+				codec = get_codec(codec)
+			reply,props = reply.dump(self,codec=codec)
+			reply = codec.encode(reply)
 			yield from channel.publish(reply, self.reply.exchange, msg.reply_to, properties=props)
 		except Exception as exc:
 			try:

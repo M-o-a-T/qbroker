@@ -1,3 +1,11 @@
+qbroker (0.30.2-2) smurf; urgency=medium
+
+  * Allow specifying a codec for replies
+
+    This involves using CC_MSG and setting msg.codec to the codec you want
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Thu, 10 Aug 2017 11:30:02 +0200
+
 qbroker (0.30.1-1) smurf; urgency=medium
 
   * Allow specifying a codec when sending a message.
