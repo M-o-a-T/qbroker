@@ -78,21 +78,21 @@ def test_rpc_basic(unit1, unit2, loop):
 		pass
 
 from qbroker.codec.registry import register_obj
-class TestError(Exception):
+class _TestError(Exception):
 	pass
 
 @pytest.mark.run_loop
 @asyncio.coroutine
 def test_rpc_error(unit1, unit2, loop):
 	def call_me():
-		raise TestError("foo")
+		raise _TestError("foo")
 	r1 = (yield from unit1.register_rpc_async("err.call",call_me, call_conv=CC_DICT))
 	try:
 		res = (yield from unit2.rpc("err.call"))
-	except TestError as exc:
+	except _TestError as exc:
 		pass
 	except MsgError:
-		assert False, "MsgError raised instead of TestError"
+		assert False, "MsgError raised instead of _TestError"
 	else:
 		assert False, "No error raised"
 
