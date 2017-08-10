@@ -1,3 +1,9 @@
+qbroker (0.30.2-3) smurf; urgency=medium
+
+  * Increment the version number, dammit
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Thu, 10 Aug 2017 11:42:12 +0200
+
 qbroker (0.30.2-2) smurf; urgency=medium
 
   * Allow specifying a codec for replies
