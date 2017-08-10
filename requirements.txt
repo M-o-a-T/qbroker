@@ -1,4 +1,4 @@
 aioamqp
 pytz
 six
-yaml
+PyYAML

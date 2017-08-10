@@ -1,3 +1,9 @@
+qbroker (0.30.2-4) smurf; urgency=medium
+
+  * Travis: fix pyyaml requirement
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Thu, 10 Aug 2017 11:55:27 +0200
+
 qbroker (0.30.2-3) smurf; urgency=medium
 
   * Increment the version number, dammit
