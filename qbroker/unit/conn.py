@@ -283,7 +283,7 @@ class Connection(object):
 			yield from channel.basic_client_ack(envelope.delivery_tag)
 
 	@asyncio.coroutine
-	def call(self,msg, timeout=None, dest=None):
+	def call(self,msg, timeout=None, retries=None, dest=None):
 		if dest is None:
 			dest = msg.routing_key
 		cfg = self.unit().config['amqp']
@@ -293,6 +293,12 @@ class Connection(object):
 				timeout = self.unit().config['amqp']['timeout'].get(tn,None)
 				if timeout is not None:
 					timeout = float(timeout)
+				retries = self.unit().config['amqp']['retries'].get(tn,None)
+				if retries is not None:
+					retries = int(retries)
+		if retries is None:
+			retries = 0
+
 		assert isinstance(msg,_RequestMsg)
 		data,props = msg.dump(self)
 		data = self.codec.encode(data)
@@ -301,24 +307,32 @@ class Connection(object):
 			id = msg.message_id
 			self.replies[id] = (f,msg)
 		logger.debug("Send %s to %s: %s", dest, cfg['exchanges'][msg._exchange], data)
-		while True:
+		err = None
+		while retries >= 0:
+			retries -= 1
+			while True:
+				try:
+					yield from getattr(self,msg._exchange).channel.publish(data, cfg['exchanges'][msg._exchange], dest, properties=props)
+				except aioamqp.exceptions.ChannelClosed:
+					logger.warn("CLOSED sending %s to %s: %s", dest, cfg['exchanges'][msg._exchange], data)
+					yield from self.unit().restart()
+				else:
+					break
+			if timeout is None:
+				return
 			try:
-				yield from getattr(self,msg._exchange).channel.publish(data, cfg['exchanges'][msg._exchange], dest, properties=props)
-			except aioamqp.exceptions.ChannelClosed:
-				logger.warn("CLOSED sending %s to %s: %s", dest, cfg['exchanges'][msg._exchange], data)
-				yield from self.unit().restart()
-			else:
-				break
-		if timeout is None:
-			return
-		try:
-			yield from asyncio.wait_for(f,timeout, loop=self._loop)
-		except asyncio.TimeoutError:
-			if isinstance(msg,PollMsg):
-				return msg.replies
-			raise # pragma: no cover
+				yield from asyncio.wait_for(f,timeout, loop=self._loop)
+			except asyncio.TimeoutError as exc:
+				if err is None:
+					err = exc
+				if isinstance(msg,PollMsg):
+					if msg.replies > 0 or retries < 0:
+						return msg.replies
+				raise # pragma: no cover
 		finally:
 			del self.replies[id]
+		if err is not None:
+			raise err
 		return f.result()
 		
 	@asyncio.coroutine

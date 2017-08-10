@@ -90,7 +90,7 @@ class Unit(object, metaclass=SyncFuncs):
 			self.restarting = None
 	
 	@asyncio.coroutine
-	def restart(self, t_min=10,t_inc=20,t_max=100):
+	def restart(self, t_min=1,t_inc=20,t_max=100):
 		"""Reconnect. This will not fail."""
 		if self.restarting is not None:
 			yield from self.restarting.wait()
@@ -106,7 +106,7 @@ class Unit(object, metaclass=SyncFuncs):
 			try:
 				yield from self.start(restart=True)
 			except Exception as exc:
-				logger.exception("Reconnect of %s failed", self)
+				logger.exception("Reconnect of %s failed, retry in %s", self,t_min)
 				yield from asyncio.sleep(t_min, loop=self._loop)
 				t_min = min(t_min+t_inc, t_max)
 			else:
@@ -144,7 +144,7 @@ class Unit(object, metaclass=SyncFuncs):
 	## client
 
 	@asyncio.coroutine
-	def rpc(self,name, _data=None, *, _dest=None,_uuid=None, **data):
+	def rpc(self,name, _data=None, *, _dest=None,_uuid=None, _timeout=None,_retries=None, **data):
 		"""Send a RPC request.
 		Returns the response. 
 		"""
@@ -160,7 +160,7 @@ class Unit(object, metaclass=SyncFuncs):
 
 		while self.conn is None:
 			yield from self.restart()
-		res = (yield from self.conn.call(msg,dest=_dest))
+		res = (yield from self.conn.call(msg,dest=_dest,timeout=_timeout,retries=_retries))
 		res.raise_if_error()
 		return res.data
 

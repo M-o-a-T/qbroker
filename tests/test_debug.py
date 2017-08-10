@@ -65,4 +65,31 @@ def test_debug(unit1, unit2, loop):
 	assert res in (None,"")
 	res = (yield from unit2.rpc("qbroker.debug.test.one", cmd="eval",code="what"))
 	assert res == "ever"
+	yield from unit2.rpc("qbroker.debug.test.one",cmd="eval",mode="exec",code="""\
+def hello():
+	return "yo"
+		""")
+	res = (yield from unit2.rpc("qbroker.debug.test.one", cmd="eval",code="hello()"))
+	assert res == "yo"
+
+@pytest.mark.run_loop
+@asyncio.coroutine
+def test_reconnect(unit1, unit2, loop):
+	unit1.debug_env(conn=unit1,xconn=unit2,retry=0)
+	yield from unit2.rpc("qbroker.debug.test.one",cmd="eval",mode="exec",code="""\
+def test_conn(c):
+	global retry
+	retry += 1
+	if retry in (2,4):
+		import os
+		os.close(c.conn.amqp._stream_reader._transport._sock_fd)
+	return retry
+	""")
+
+	res = (yield from unit2.rpc("qbroker.debug.test.one", cmd="eval",code="test_conn(conn)"))
+	assert res == 1
+	res = (yield from unit2.rpc("qbroker.debug.test.one", cmd="eval",code="test_conn(conn)", _timeout=2,_retries=1))
+	assert res == 3
+	res = (yield from unit2.rpc("qbroker.debug.test.one", cmd="eval",code="test_conn(xconn)", _timeout=2,_retries=1))
+	assert res == 5
 
