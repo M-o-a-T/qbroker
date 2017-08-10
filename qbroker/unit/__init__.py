@@ -58,6 +58,7 @@ DEFAULT_CONFIG=dict(
 			dead=False, # add a handler for dead messages
 			debug=False, # add code to debug the connection
 		),
+		codec='DEFAULT',
 		ttl=dict(
 			rpc=10,
 		),

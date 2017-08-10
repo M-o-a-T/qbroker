@@ -192,6 +192,8 @@ class BaseMsg(_MsgPart):
 
 	def dump(self,conn, codec=None):
 		props = Properties()
+		if codec is None:
+			codec = conn.codec
 		obj = super().dump()
 		for f in 'type message-id reply-to correlation-id'.split(' '):
 			m = obj.pop(f,None)
@@ -199,7 +201,7 @@ class BaseMsg(_MsgPart):
 				setattr(props,fmap(f), m)
 		props.timestamp = int(time())
 		props.user_id = conn.cfg['login']
-		props.content_type = conn.codec.CODEC
+		props.content_type = codec.CODEC
 		props.app_id = conn.unit().uuid
 		# props.delivery_mode = 2
 		if self.error is not None:

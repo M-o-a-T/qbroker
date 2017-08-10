@@ -1,3 +1,15 @@
+qbroker (0.30.1-1) smurf; urgency=medium
+
+  * Allow specifying a codec when sending a message.
+
+    TODO: doing this when replying
+
+  * Deprecate passing random keywords into msg() and alert().
+    Use a dict(…) argument, please.
+    This also removes the underscores from these methods' parameters.
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Thu, 10 Aug 2017 11:17:05 +0200
+
 qbroker (0.21.0-1) smurf; urgency=medium
 
   * Add a basic debugger back-end

@@ -15,12 +15,17 @@ CODEC = "text/plain"
 DEBUG=False
 
 def encode(data):
-	if isinstance(data,str):
+	if not data:
+		data = b""
+	elif isinstance(data,str):
 		data = data.encode('utf-8')
+	elif not isinstance(data,bytes): # pre-encoded. Oh well.
+		raise RuntimeError("Need Unicode, not %s"%str(type(data)))
+	# else:
+    #     data.decode('utf-8') # assertion only
 	return data
 
 def decode(data):
-	if isinstance(data,bytes):
-		data = data.decode('utf-8')
+	data = data.decode('utf-8')
 	return data
 

@@ -61,6 +61,7 @@ class Unit(object, metaclass=SyncFuncs):
 		self.rpc_endpoints = {}
 		self.alert_endpoints = {}
 
+		self.codec = self.config['amqp']['codec']
 		if self.config['amqp']['handlers']['debug']:
 			from .debug import Debugger
 			self.debug = Debugger()
@@ -107,7 +108,10 @@ class Unit(object, metaclass=SyncFuncs):
 				yield from self.start(restart=True)
 			except Exception as exc:
 				logger.exception("Reconnect of %s failed, retry in %s", self,t_min)
-				yield from asyncio.sleep(t_min, loop=self._loop)
+				try:
+					yield from asyncio.sleep(t_min, loop=self._loop)
+				except RuntimeError: # loop exiting
+					return
 				t_min = min(t_min+t_inc, t_max)
 			else:
 				self.restarting.set()
@@ -144,46 +148,48 @@ class Unit(object, metaclass=SyncFuncs):
 	## client
 
 	@asyncio.coroutine
-	def rpc(self,name, _data=None, *, _dest=None,_uuid=None, _timeout=None,_retries=None, **data):
+	def rpc(self,name, data=None, *, dest=None,uuid=None,codec=None, timeout=None,retries=None, **_data):
 		"""Send a RPC request.
 		Returns the response. 
 		"""
-		if _data is not None:
-			assert not data, data
+		if data is not None:
+			assert not _data, "Unknown:"+str(_data)
+		elif _data:
 			data = _data
 		msg = RequestMsg(name, self, data)
-		assert _uuid is None or _dest is None
-		if _dest is not None:
-			_dest = 'qbroker.app.'+_dest
-		elif _uuid is not None:
-			_dest = 'qbroker.uuid.'+_uuid
+		assert uuid is None or dest is None
+		if dest is not None:
+			dest = 'qbroker.app.'+dest
+		elif uuid is not None:
+			dest = 'qbroker.uuid.'+uuid
 
 		while self.conn is None:
 			yield from self.restart()
-		res = (yield from self.conn.call(msg,dest=_dest,timeout=_timeout,retries=_retries))
+		res = (yield from self.conn.call(msg, dest=dest, timeout=timeout, retries=retries, codec=codec))
 		res.raise_if_error()
 		return res.data
 
 	@asyncio.coroutine
-	def alert(self,name, _data=None, *, _dest=None,_uuid=None, timeout=None,callback=None,call_conv=CC_MSG, **data):
+	def alert(self,name, data=None, *, dest=None,uuid=None,codec=None, timeout=None,callback=None,call_conv=CC_MSG, **_data):
 		"""Send a broadcast alert.
 		If @callback is not None, call on each response until the time runs out
 		"""
-		if _data is not None:
-			assert not data
+		if data is not None:
+			assert not _data, "Unknown:"+str(_data)
+		elif _data:
 			data = _data
 		if callback:
 			msg = PollMsg(name, self, data=data, callback=callback,call_conv=call_conv)
 		else:
 			msg = AlertMsg(name, self, data=data)
-		assert _uuid is None or _dest is None
-		if _dest is not None:
-			_dest = 'qbroker.uuid.'+_dest
-		elif _uuid is not None:
-			_dest = 'qbroker.uuid.'+_uuid
+		assert uuid is None or dest is None
+		if dest is not None:
+			dest = 'qbroker.uuid.'+dest
+		elif uuid is not None:
+			dest = 'qbroker.uuid.'+uuid
 		while self.conn is None:
 			yield from self.restart()
-		res = (yield from self.conn.call(msg, dest=_dest, timeout=timeout))
+		res = (yield from self.conn.call(msg, dest=dest, timeout=timeout, codec=codec))
 		return res
 		
 	## server
@@ -369,8 +375,13 @@ class Unit(object, metaclass=SyncFuncs):
 	@asyncio.coroutine
 	def _create_conn(self, _setup=None):
 		from .conn import Connection
-		conn = Connection(self)
-		yield from conn.connect(_setup=_setup)
+		conn = Connection(self, codec=self.codec)
+		try:
+			yield from conn.connect(_setup=_setup)
+		except RuntimeError as ex:
+			if "Event loop is closed" in str(ex):
+				return
+			raise
 		for d in self.rpc_endpoints.values():
 			yield from conn.register_rpc(d)
 		for d in self.alert_endpoints.values():

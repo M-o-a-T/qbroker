@@ -49,7 +49,7 @@ class Connection(object):
 
 	def __init__(self,unit,codec=None):
 		if codec is None:
-			codec = unit.config['amqp'].get('codec', 'DEFAULT')
+			codec = unit.config['amqp']['codec']
 		if isinstance(codec,str):
 			codec = get_codec(codec)
 		self._loop = unit._loop
@@ -235,7 +235,7 @@ class Connection(object):
 			reply = msg.make_response()
 			try:
 				if rpc.call_conv == CC_DICT:
-					a=(); k=msg.data
+					a=(); k=msg.data or {}
 				elif rpc.call_conv == CC_DATA:
 					a=(msg.data,); k={}
 				else:
@@ -283,7 +283,12 @@ class Connection(object):
 			yield from channel.basic_client_ack(envelope.delivery_tag)
 
 	@asyncio.coroutine
-	def call(self,msg, timeout=None, retries=None, dest=None):
+	def call(self,msg, timeout=None, retries=None, dest=None, codec=None):
+		if codec is None:
+			codec = self.codec
+		elif isinstance(codec,str):
+			codec = get_codec(codec)
+
 		if dest is None:
 			dest = msg.routing_key
 		cfg = self.unit().config['amqp']
@@ -300,8 +305,8 @@ class Connection(object):
 			retries = 0
 
 		assert isinstance(msg,_RequestMsg)
-		data,props = msg.dump(self)
-		data = self.codec.encode(data)
+		data,props = msg.dump(self, codec=codec)
+		data = codec.encode(data)
 		if timeout is not None:
 			f = asyncio.Future(loop=self._loop)
 			id = msg.message_id

@@ -34,7 +34,8 @@ def unit1(loop):
 @pytest.yield_fixture
 def unit2(loop):
 	yield from _unit("two",loop)
-def _unit(name,loop):
+def _unit(name,loop,codec="DEFAULT"):
+	cfg['amqp']['codec'] = codec
 	u = loop.run_until_complete(unit("test."+name, loop=loop, **cfg))
 	yield u
 	x = u.stop()
@@ -101,9 +102,9 @@ def test_rpc_error(unit1, unit2, loop):
 def test_rpc_direct(unit1, unit2, loop):
 	call_me = Mock(side_effect=lambda x: "foo "+x)
 	r1 = (yield from unit1.register_rpc_async("my.call",call_me, call_conv=CC_DATA))
-	res = (yield from unit2.rpc("my.call", "one",_uuid=unit1.uuid))
+	res = (yield from unit2.rpc("my.call", "one",uuid=unit1.uuid))
 	assert res == "foo one"
-	t = unit2.rpc("my.call", "No!", _uuid=unit2.uuid)
+	t = unit2.rpc("my.call", "No!", uuid=unit2.uuid)
 	try:
 		yield from asyncio.wait_for(t,timeout=TIMEOUT*5/2,loop=loop)
 	except asyncio.TimeoutError:
@@ -176,10 +177,10 @@ def test_alert_callback(unit1, unit2, loop):
 	yield from unit2.alert("my.alert",y="dud",callback=cb,call_conv=CC_DATA, timeout=TIMEOUT)
 	assert n == 2
 	n = 0
-	yield from unit1.alert("my.alert",_data={'y':"dud"},callback=cb,call_conv=CC_DATA, timeout=TIMEOUT)
+	yield from unit1.alert("my.alert",{'y':"dud"},callback=cb,call_conv=CC_DATA, timeout=TIMEOUT)
 	assert n == 2
 	yield from unit1.unregister_alert_async(r1)
-	yield from unit1.alert("my.alert",_data={'y':"dud"},callback=cb,call_conv=CC_DATA, timeout=TIMEOUT)
+	yield from unit1.alert("my.alert",{'y':"dud"},callback=cb,call_conv=CC_DATA, timeout=TIMEOUT)
 	assert n == 3
 
 @pytest.mark.run_loop
@@ -194,6 +195,18 @@ def test_alert_uncodeable(unit1, unit2, loop):
 
 @pytest.mark.run_loop
 @asyncio.coroutine
+def test_alert_binary(unit1, unit2, loop):
+	done = [False]
+	def alert_me(msg):
+		assert msg == "Hellö".encode("utf-8")
+		done[0] = True
+	yield from unit1.register_alert_async("my.alert",alert_me, call_conv=CC_DATA)
+	yield from unit2.alert("my.alert", "Hellö", codec="application/binary")
+	yield from asyncio.sleep(TIMEOUT/2, loop=loop)
+	assert done[0]
+
+@pytest.mark.run_loop
+@asyncio.coroutine
 def test_alert_oneway(unit1, unit2, loop):
 	alert_me1 = Mock()
 	alert_me2 = Mock()
@@ -203,10 +216,10 @@ def test_alert_oneway(unit1, unit2, loop):
 	yield from unit1.register_alert_async("my.alert2",alert_me2, call_conv=CC_DATA)
 	yield from unit1.register_alert_async("my.alert3",alert_me3) # default is CC_MSG
 	yield from unit1.register_alert_async("my.#",alert_me4) # default is CC_MSG
-	yield from unit2.alert("my.alert1",_data={'y':"dud"})
-	yield from unit2.alert("my.alert2",_data={'y':"dud"})
-	yield from unit2.alert("my.alert3",_data={'y':"dud"})
-	yield from unit2.alert("my.alert4.whatever",_data={'z':"dud"})
+	yield from unit2.alert("my.alert1",{'y':"dud"})
+	yield from unit2.alert("my.alert2",{'y':"dud"})
+	yield from unit2.alert("my.alert3",{'y':"dud"})
+	yield from unit2.alert("my.alert4.whatever",{'z':"dud"})
 	yield from asyncio.sleep(TIMEOUT/2, loop=loop)
 	alert_me1.assert_called_with(y='dud')
 	alert_me2.assert_called_with(dict(y='dud'))
@@ -228,7 +241,7 @@ def test_alert_no_data(unit1, unit2, loop):
 		assert not a
 		assert not k
 		return {}
-	res = (yield from unit2.alert("my.alert1",_data="", callback=recv1, call_conv=CC_DATA, timeout=TIMEOUT))
+	res = (yield from unit2.alert("my.alert1", "", callback=recv1, call_conv=CC_DATA, timeout=TIMEOUT))
 	alert_me1.assert_called_with("")
 	assert res == 1
 	res = (yield from unit2.alert("my.alert2", callback=recv2, call_conv=CC_DICT, timeout=TIMEOUT))
@@ -307,7 +320,7 @@ def test_alert_stop(unit1, unit2, loop):
 		nonlocal ncall
 		ncall += 1
 		raise StopIteration
-	res = (yield from unit2.alert("my.sleep",_data="", callback=recv, timeout=TIMEOUT*5/2))
+	res = (yield from unit2.alert("my.sleep", callback=recv, timeout=TIMEOUT*5/2))
 	assert res == 1, res
 	assert nhit == 2, nhit
 	assert ncall == 1, ncall
@@ -329,7 +342,7 @@ def test_reg(unit1, unit2, loop):
 	assert res >= 2
 	assert rx == 2
 
-	res = (yield from unit2.rpc("qbroker.ping", _uuid=unit1.uuid))
+	res = (yield from unit2.rpc("qbroker.ping", uuid=unit1.uuid))
 	assert res['app'] == unit1.app
 	assert "qbroker.ping" in res['rpc'], res['rpc']
 
@@ -343,7 +356,7 @@ def test_alert_error(unit1, unit2, loop):
 	def recv1(d):
 		assert d.error.cls == "RuntimeError"
 		assert d.error.message == "dad"
-	res = (yield from unit2.alert("my.error1", _data="", callback=recv1, timeout=TIMEOUT))
+	res = (yield from unit2.alert("my.error1", callback=recv1, timeout=TIMEOUT))
 	error_me1.assert_called_with("")
 	assert res == 1
 
