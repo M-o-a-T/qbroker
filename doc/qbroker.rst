@@ -143,6 +143,25 @@ Meta information about the message. This is stored in the AMQP header.
     A JSON variant which can encode select Python objects. See
     `qbroker.codec.json_obj` on how to encode your own objects.
 
+  * text/plain
+
+    UTF-8 data.
+
+  * application/binary
+
+    raw bytes.
+
+You can specify which codec to use by default in the connect call, but
+the default needs at least the same power as the JSON codec because the
+startup and teardown messages are dicts.
+
+The `alert` and `rpc` methods understand a ``codec`` parameter.
+
+Replies default to using the same codec the requests were transmitted as.
+If you need to change it, your callback needs to use the `CC_MSG` calling
+convention; set ``msg.codec`` to the codec you require for your reply, or
+to ``None`` to use the connection's default codec.
+
 body
 ----
 
