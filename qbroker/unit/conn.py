@@ -74,7 +74,8 @@ class Connection(object):
 			self.amqp_transport,self.amqp = (yield from aioamqp.connect(loop=self._loop, protocol_factory=NotifyingAmqpProtocol, **self.cfg))
 			#self.amqp_transport,self.amqp = (yield from aioamqp.connect(loop=self._loop, **self.cfg))
 		except Exception as e:
-			logger.exception("Not connected to AMPQ: host=%s vhost=%s user=%s", self.cfg['host'],self.cfg['virtualhost'],self.cfg['login'])
+			if type(e) is not RuntimeError or not str(e).contains("Event loop is closed"):
+				logger.exception("Not connected to AMPQ: host=%s vhost=%s user=%s", self.cfg['host'],self.cfg['virtualhost'],self.cfg['login'])
 			raise
 		if _setup is not None:
 			yield from _setup(self.amqp)
@@ -463,8 +464,9 @@ class Connection(object):
 			logger.debug("Killing %s",self)
 			try:
 				a.close()
-			except Exception: # pragma: no cover
-				logger.exception("killing the connection")
+			except Exception as e: # pragma: no cover
+				if type(e) is not RuntimeError or not str(e).contains("Event loop is closed"):
+					logger.exception("killing the connection")
 
 import aioamqp.protocol
 class NotifyingAmqpProtocol(aioamqp.protocol.AmqpProtocol):
