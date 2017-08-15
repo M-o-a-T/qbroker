@@ -120,6 +120,7 @@ class Unit(object, metaclass=SyncFuncs):
 	
 	def restart_cb(self,f):
 		def done(ff):
+			self._restart_job = None
 			if ff.cancelled():
 				return
 			try:
@@ -131,6 +132,7 @@ class Unit(object, metaclass=SyncFuncs):
 			return
 		f = asyncio.ensure_future(self.restart(), loop=self._loop)
 		f.add_done_callback(done)
+		self._restart_job = f
 
 	@asyncio.coroutine
 	def stop(self, rc=0):
