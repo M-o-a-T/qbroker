@@ -1,3 +1,9 @@
+qbroker (0.30.3-1) smurf; urgency=medium
+
+  * Wrong variable
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Tue, 15 Aug 2017 18:49:11 +0200
+
 qbroker (0.30.2-5) smurf; urgency=medium
 
   * Travis: Python 3.4 does no longer work

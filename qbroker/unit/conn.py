@@ -280,7 +280,7 @@ class Connection(object):
 
 	@asyncio.coroutine
 	def _on_reply(self, channel,body,envelope,properties):
-		logger.debug("read reply %s for %s: %s",envelope.delivery_tag, envelope.correlation_id, body)
+		logger.debug("read reply %s for %s: %s",envelope.delivery_tag, properties.correlation_id, body)
 		try:
 			codec = get_codec(properties.content_type)
 			msg = codec.decode(body)
