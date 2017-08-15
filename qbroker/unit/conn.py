@@ -162,7 +162,7 @@ class Connection(object):
 		
 	@asyncio.coroutine
 	def _on_alert(self, channel,body,envelope,properties):
-		logger.debug("read alert message %s",envelope.delivery_tag)
+		logger.debug("read alert %s on %s: %s",envelope.delivery_tag, envelope.routing_key,body)
 		try:
 			codec = get_codec(properties.content_type)
 			msg = codec.decode(body)
@@ -220,6 +220,7 @@ class Connection(object):
 					yield from rpc.run(*a,**k)
 				except Exception as exc:
 					logger.exception("error on alert %s: %s", envelope.delivery_tag, body)
+				reply = None
 
 		except Exception as exc:
 			try:
@@ -229,12 +230,12 @@ class Connection(object):
 			else:
 				logger.exception("problem with rpc %s: %s", envelope.delivery_tag, body)
 		else:
-			logger.debug("ack rpc %s",envelope.delivery_tag)
+			logger.debug("acked alert %s: %s",envelope.delivery_tag, reply)
 			yield from channel.basic_client_ack(envelope.delivery_tag)
 
 	@asyncio.coroutine
 	def _on_rpc(self, channel,body,envelope,properties):
-		logger.debug("read rpc message %s",envelope.delivery_tag)
+		logger.debug("read rpc %s on %s: %s",envelope.delivery_tag,envelope.routing_key,body)
 		try:
 			codec = get_codec(properties.content_type)
 			msg = codec.decode(body)
@@ -275,11 +276,11 @@ class Connection(object):
 			except Exception as exc:
 				logger.exception("problem with rpc ack: %s", envelope.delivery_tag)
 			else:
-				logger.debug("acked rpc %s",envelope.delivery_tag)
+				logger.debug("acked rpc %s to %s: %s",envelope.delivery_tag, msg.correlation_id, reply)
 
 	@asyncio.coroutine
 	def _on_reply(self, channel,body,envelope,properties):
-		logger.debug("read reply message %s",envelope.delivery_tag)
+		logger.debug("read reply %s for %s: %s",envelope.delivery_tag, envelope.correlation_id, body)
 		try:
 			codec = get_codec(properties.content_type)
 			msg = codec.decode(body)
@@ -294,7 +295,7 @@ class Connection(object):
 			yield from self.reply.channel.basic_reject(envelope.delivery_tag)
 			logger.exception("problem with message %s: %s", envelope.delivery_tag, body)
 		else:
-			logger.debug("ack message %s",envelope.delivery_tag)
+			logger.debug("ack reply %s",envelope.delivery_tag)
 			yield from channel.basic_client_ack(envelope.delivery_tag)
 
 	@asyncio.coroutine
