@@ -100,7 +100,7 @@ def test_rpc_error(unit1, unit2, loop):
 @pytest.mark.run_loop
 @asyncio.coroutine
 def test_rpc_direct(unit1, unit2, loop):
-	call_me = Mock(side_effect=lambda x: "foo "+x)
+	call_me = Mock(side_effect=lambda x: "foo "+str(x))
 	r1 = (yield from unit1.register_rpc_async("my.call",call_me, call_conv=CC_DATA))
 	res = (yield from unit2.rpc("my.call", "one",uuid=unit1.uuid))
 	assert res == "foo one"
@@ -392,7 +392,7 @@ def test_rpc_bad_params(unit1, unit2, loop):
 @pytest.mark.run_loop
 @asyncio.coroutine
 def test_rpc_unroutable(unit1, unit2, loop):
-	call_me = Mock(side_effect=lambda x: "foo "+x)
+	call_me = Mock(side_effect=lambda x: "foo "+str(x))
 	yield from unit1.register_rpc_async("my.call",call_me, call_conv=CC_DATA)
 	try:
 		res = (yield from unit2.rpc("my.non_routed.call"))
