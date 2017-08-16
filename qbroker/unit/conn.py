@@ -377,6 +377,7 @@ class Connection(object):
 			logger.debug("Chan %s: read %s", rpc.channel,rpc.queue['queue'])
 			yield from rpc.channel.basic_consume(queue_name=rpc.queue['queue'], callback=self._on_rpc, consumer_tag=rpc.uuid)
 		except BaseException:
+			logger.error("RPC failed on %s: %s", self,rpc)
 			del self.rpcs[rpc.name]
 			raise
 
