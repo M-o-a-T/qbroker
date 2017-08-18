@@ -28,7 +28,8 @@ logger = logging.getLogger(__name__)
 
 class Unit(object, metaclass=SyncFuncs):
 	"""The basic QBroker messenger."""
-	config = None # configuration data
+	config = None # configuration data, also serves as flag
+	              # for preventing restart at closedown
 	conn = None # AMQP receiver
 	uuid = None # my UUID
 	restarting = None
@@ -104,6 +105,8 @@ class Unit(object, metaclass=SyncFuncs):
 			pass
 		
 		while True:
+			if self.config is None:
+				return
 			try:
 				yield from self.start(restart=True)
 			except Exception as exc:
@@ -119,6 +122,9 @@ class Unit(object, metaclass=SyncFuncs):
 				return
 	
 	def restart_cb(self,f):
+		if self.config is None:
+			return
+
 		def done(ff):
 			self._restart_job = None
 			if ff.cancelled():
@@ -366,6 +372,7 @@ class Unit(object, metaclass=SyncFuncs):
 		self._kill_conn()
 
 	def _kill_conn(self, deleting=False):
+		self.config = None
 		c,self.conn = self.conn,None
 		if c: # pragma: no cover
 			try:

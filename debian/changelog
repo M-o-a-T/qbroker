@@ -1,3 +1,9 @@
+qbroker (0.30.5-1) unstable; urgency=medium
+
+  * Prevent restarts during closing.
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Fri, 18 Aug 2017 10:11:18 +0200
+
 qbroker (0.30.4-1) unstable; urgency=medium
 
   * Error handling fix
