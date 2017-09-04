@@ -61,8 +61,6 @@ class Unit(object, metaclass=SyncFuncs):
 		self.uuid = uuidstr()
 
 		self.config = combine_dict(cfg, DEFAULT_CONFIG)
-		logger.debug("Restart %s: created", self.uuid)
-		self.restarting = asyncio.Event(loop=loop)
 
 		self.rpc_endpoints = {}
 		self.alert_endpoints = {}
@@ -75,6 +73,10 @@ class Unit(object, metaclass=SyncFuncs):
 	@asyncio.coroutine
 	def start(self, *args, restart=False, _setup=None):
 		"""Connect. This may fail."""
+		if self.restarting is None:
+			logger.debug("Restart %s: created", self.uuid)
+			self.restarting = asyncio.Event(loop=loop)
+
 		if args:
 			self.args = args
 
