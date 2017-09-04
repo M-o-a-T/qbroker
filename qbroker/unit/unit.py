@@ -36,7 +36,7 @@ class Unit(object, metaclass=SyncFuncs):
 	args = ()
 	debug = None
 
-	def __init__(self, app, *, loop=None, hidden=False, **cfg):
+	def __init__(self, app, *args, loop=None, hidden=False, **cfg):
 		"""\
 			Connect to an AMQP server. See qbroker.unit.DEFAULT_CONFIG for
 			all recognized parameters.
@@ -51,10 +51,12 @@ class Unit(object, metaclass=SyncFuncs):
 			You need to call .start() to actually initiate a connection.
 			"""
 
+		self.app = app
+		self.args = args
+
 		self.hidden = hidden
 
 		self._loop = loop or asyncio.get_event_loop()
-		self.app = app
 
 		self.uuid = uuidstr()
 
