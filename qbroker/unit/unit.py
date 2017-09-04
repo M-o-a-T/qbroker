@@ -85,7 +85,8 @@ class Unit(object, metaclass=SyncFuncs):
 			self.register_rpc("qbroker.ping", self._reply_ping)
 			self.register_alert("qbroker.app."+self.app, self._alert_ping, call_conv=CC_DATA)
 			self.register_rpc("qbroker.app."+self.app, self._reply_ping)
-			self.register_rpc("qbroker.debug."+self.app, self._reply_debug, call_conv=CC_DICT)
+			if self.debug is not None:
+				self.register_rpc("qbroker.debug."+self.app, self._reply_debug, call_conv=CC_DICT)
 			# uuid: done in conn setup
 
 		yield from self._create_conn(_setup=_setup)
