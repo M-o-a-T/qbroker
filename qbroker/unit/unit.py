@@ -59,6 +59,7 @@ class Unit(object, metaclass=SyncFuncs):
 		self.uuid = uuidstr()
 
 		self.config = combine_dict(cfg, DEFAULT_CONFIG)
+		logger.debug("Restart %s: created", self.uuid)
 		self.restarting = asyncio.Event(loop=loop)
 
 		self.rpc_endpoints = {}
@@ -87,6 +88,7 @@ class Unit(object, metaclass=SyncFuncs):
 		if not self.hidden:
 			yield from self.alert('qbroker.restart' if restart else 'qbroker.start', uuid=self.uuid, app=self.app, args=args)
 		if not restart:
+			logger.debug("Restart %s: cleared in start",self.uuid)
 			self.restarting.set()
 			self.restarting = None
 	
@@ -94,8 +96,10 @@ class Unit(object, metaclass=SyncFuncs):
 	def restart(self, t_min=1,t_inc=20,t_max=100):
 		"""Reconnect. This will not fail."""
 		if self.restarting is not None:
+			logger.debug("Restart %s: waiting", self.uuid)
 			yield from self.restarting.wait()
 			return
+		logger.debug("Restart %s: entering", self.uuid)
 		self.restarting = asyncio.Event(loop=self._loop)
 
 		try:
@@ -116,15 +120,18 @@ class Unit(object, metaclass=SyncFuncs):
 					return
 				t_min = min(t_min+t_inc, t_max)
 			else:
+				logger.debug("Restart %s: exiting", self.uuid)
 				self.restarting.set()
 				self.restarting = None
 				return
 	
 	def restart_cb(self,f):
+		logger.debug("Restart %s: _cb %s", self.uuid,f)
 		if self.config is None:
 			return
 
 		def done(ff):
+			logger.debug("Restart %s: _cb_d %s", self.uuid,ff)
 			self._restart_job = None
 			if ff.cancelled():
 				return
@@ -379,6 +386,9 @@ class Unit(object, metaclass=SyncFuncs):
 			except Exception:
 				if not deleting:
 					logger.exception("closing connection")
+		if self.restarting is not None:
+			self.restarting.set()
+			self.restarting = None
 
 	@asyncio.coroutine
 	def _create_conn(self, _setup=None):
