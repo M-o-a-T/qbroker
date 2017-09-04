@@ -56,6 +56,8 @@ class Unit(object, metaclass=SyncFuncs):
 		self._loop = loop or asyncio.get_event_loop()
 		self.app = app
 
+		self.uuid = uuidstr()
+
 		self.config = combine_dict(cfg, DEFAULT_CONFIG)
 		self.restarting = asyncio.Event(loop=loop)
 
@@ -70,9 +72,6 @@ class Unit(object, metaclass=SyncFuncs):
 	@asyncio.coroutine
 	def start(self, *args, restart=False, _setup=None):
 		"""Connect. This may fail."""
-
-		if self.uuid is None:
-			self.uuid = uuidstr()
 		if args:
 			self.args = args
 
