@@ -75,7 +75,7 @@ class Unit(object, metaclass=SyncFuncs):
 		"""Connect. This may fail."""
 		if self.restarting is None:
 			logger.debug("Restart %s: created", self.uuid)
-			self.restarting = asyncio.Event(loop=loop)
+			self.restarting = asyncio.Event(loop=self._loop)
 
 		if args:
 			self.args = args

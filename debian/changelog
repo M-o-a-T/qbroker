@@ -1,3 +1,9 @@
+qbroker (0.30.6-1) unstable; urgency=medium
+
+  * Forgot to think …
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Wed, 13 Sep 2017 14:48:03 +0200
+
 qbroker (0.30.5-1) unstable; urgency=medium
 
   * Prevent restarts during closing.
