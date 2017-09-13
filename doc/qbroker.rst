@@ -143,6 +143,11 @@ Meta information about the message. This is stored in the AMQP header.
     A JSON variant which can encode select Python objects. See
     `qbroker.codec.json_obj` on how to encode your own objects.
 
+  * application/json+repr
+
+    Like json+obj, but non-encodeable objects are represented as dicts
+    instead of triggering an error.
+
   * text/plain
 
     UTF-8 data.
