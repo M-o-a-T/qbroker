@@ -26,8 +26,11 @@ class Debugger(object):
 		self.env = {}
 
 	@asyncio.coroutine
-	def run(self, cmd=None, **args):
-		"""Connect. This may fail."""
+	def run(self,msg):
+		"""Evaluate a debugger command."""
+		msg.codec = 'application/json+repr'
+		args = msg.data if msg.data != '' else {}
+		cmd = args.pop('cmd',None)
 
 		if cmd is None:
 			if args:
@@ -36,11 +39,23 @@ class Debugger(object):
 		return (yield from getattr(self,'run_'+cmd)(**args))
 
 	@asyncio.coroutine
+	def run_env(self, **args):
+		"""Dump the debugger's environment"""
+		return dict((k,v) for k,v in self.env.items() if k != '__builtins__')
+
+	@asyncio.coroutine
 	def run_eval(self, code=None, mode="eval", **args):
-		"""Evaluate @code (string). @mode may be 'exec', 'single' or 'eval' (default).
+		"""Evaluate @code (string). @mode may be 'exec', 'single' or 'eval'/'vars' (default).
 		    All other arguments are used as local variables.
 			Non-local values are persistent.
+
+			'vars' is like 'eval' but applies vars() to the result.
 		    """
+		do_vars = False
+		if mode == "vars":
+			mode = "eval"
+			do_vars = True
+
 		ed = dict(self.env)
 		code = compile(code,"(debug)",mode)
 		loc = args.copy()
@@ -50,6 +65,17 @@ class Debugger(object):
 		for k,v in loc.items():
 			if k not in args:
 				self.env[k] = v
+		if do_vars:
+			try:
+				r = vars(res)
+			except TypeError:
+				r = {}
+				for k in dir(res):
+					v = getattr(res,k)
+					if not callable(v):
+						r[k]=v
+			r['__obj__'] = str(res)
+			res = r
 		return res
 	
 	@asyncio.coroutine

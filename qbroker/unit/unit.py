@@ -86,7 +86,7 @@ class Unit(object, metaclass=SyncFuncs):
 			self.register_alert("qbroker.app."+self.app, self._alert_ping, call_conv=CC_DATA)
 			self.register_rpc("qbroker.app."+self.app, self._reply_ping)
 			if self.debug is not None:
-				self.register_rpc("qbroker.debug."+self.app, self._reply_debug, call_conv=CC_DICT)
+				self.register_rpc("qbroker.debug."+self.app, self._reply_debug, call_conv=CC_MSG)
 			# uuid: done in conn setup
 
 		yield from self._create_conn(_setup=_setup)
@@ -366,8 +366,8 @@ class Unit(object, metaclass=SyncFuncs):
 			)
 		
 	@asyncio.coroutine
-	def _reply_debug(self,**data):
-		return (yield from self.debug.run(**data))
+	def _reply_debug(self,msg):
+		return (yield from self.debug.run(msg))
 
 	def debug_env(self, **data):
 		if self.debug is None:
