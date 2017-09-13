@@ -1,3 +1,10 @@
+qbroker (0.30.7-1) unstable; urgency=medium
+
+  * Add json/obj+repr codec
+  * Extend debugger
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Wed, 13 Sep 2017 23:44:47 +0200
+
 qbroker (0.30.6-1) unstable; urgency=medium
 
   * Forgot to think …
