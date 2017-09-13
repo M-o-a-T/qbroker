@@ -31,29 +31,6 @@ class Encoder(JSONEncoder):
 			data["_o"] = obj.clsname
 			return data
 
-		if hasattr(data,"_read"):
-			ci = (data._t.name,data._id)
-			cr = self.objcache.get(ci,None)
-			if cr is not None:
-				d = {"_cr":cr}
-			else:
-				cr = len(self.objcache)+1
-				self.objcache[ci] = cr
-
-				d = {"_index": data._id, "_table": data._t.name, "_cr": cr}
-				send = False
-				if data in self.main:
-					send = True
-				else:
-					mode = getattr(data,'_mode',F_STANDARD)
-					if mode in (F_SQL,F_STORE):
-						send = True
-				if isinstance(data._d,Exception):
-					d["_error"] = str(data._d)
-				elif send:
-					for k,v in data:
-						d[k] = v
-			return d
 		return super(Encoder,self).default(data)
 
 def encode(data):
@@ -102,15 +79,6 @@ class Decoder(JSONDecoder):
 			d = self.proxy()
 			self.objcache[cr]=d
 
-		try:
-			t = data.pop('_table')
-			idx = data.pop('_index')
-			idx = tuple(tuple(x) for x in idx) # convert from nested list
-		except KeyError:
-			pass # recursive or whatever
-		else:
-			d = d._set(t,idx,**data)
-			self.objcache[cr] = d
 		return d
 	
 def decode(data, proxy=None, p1=None):
