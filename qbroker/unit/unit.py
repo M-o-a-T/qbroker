@@ -372,7 +372,11 @@ class Unit(object, metaclass=SyncFuncs):
 	def debug_env(self, **data):
 		if self.debug is None:
 			return
-		self.debug.env.update(data)
+		for k,v in data.items():
+			if v is not None:
+				self.debug.env[k] = v
+			else:
+				self.debug.env.pop(k,None)
 		
 	## cleanup, less interesting (hopefully)
 
