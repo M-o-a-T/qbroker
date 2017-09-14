@@ -11,7 +11,7 @@ from collections.abc import Mapping
 from .registry import type2cls,name2cls
 
 CODEC = "application/json+repr"
-DEFAULT = True
+DEFAULT = False
 
 DEBUG=False
 
