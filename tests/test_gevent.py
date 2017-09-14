@@ -1,26 +1,35 @@
 # -*- coding: UTF-8 -*-
 
 
-import qbroker
-qbroker.setup(gevent=True)
-from qbroker.util import sync
-
-import aiogevent
-import asyncio
-import gevent
-import os
 import pytest
-import sys
+import qbroker
+import asyncio
 import unittest
+try:
+    qbroker.setup(gevent=True)
+except ImportError:
+    skip = pytest.mark.skip
+    async_gevent = lambda x:x
+else:
+    skip = lambda x:x
 
-from qbroker.unit import Unit
-from qbroker.util.sync import async_gevent
-from testsupport import unit,TIMEOUT,cfg
+    from qbroker.util import sync
+
+    import aiogevent
+    import gevent
+    import os
+    import pytest
+    import sys
+
+    from qbroker.unit import Unit
+    from qbroker.util.sync import async_gevent
+    from testsupport import unit,TIMEOUT,cfg
 
 
 #MY_DIR = os.path.abspath(os.path.dirname(__file__))
 #sys.path.append(MY_DIR)
 
+@skip
 class TestPing(unittest.TestCase):
     q = None
     plonged = None
@@ -62,6 +71,3 @@ class TestPing(unittest.TestCase):
         finally:
             u.stop_gevent()
 
-
-if __name__ == "__main__":
-    unittest.main()

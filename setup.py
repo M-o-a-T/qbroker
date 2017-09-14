@@ -14,7 +14,8 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 ##BP
 
 import qbroker
-qbroker.setup(sync=True,gevent=True)
+qbroker.setup()
+
 from setuptools import setup, find_packages
 import xml.sax.saxutils
 from os.path import join

@@ -1,18 +1,25 @@
 # -*- coding: UTF-8 -*-
 
-import asyncio
-import os
-import sys
+import pytest
 import unittest
-import gevent
-import aiogevent
-import qbroker; qbroker.setup(gevent=True)
-from qbroker.util.sync import await_gevent
+import asyncio
+try:
+    import qbroker; qbroker.setup(gevent=True)
+except ImportError:
+    skip = pytest.mark.skip
+else:
+    skip = lambda x:x
+    import os
+    import sys
+    import gevent
+    import aiogevent
+    from qbroker.util.sync import await_gevent
 
 # This is not really necessary for QBroker per se.
 # These tests are only intended to ensure that asyncio and gevent play well together.
 # Thus, a separate gevent-aware version of QBroker will not be necessary.
 
+@skip
 class TestPing(unittest.TestCase):
     q = None
     plonged = None

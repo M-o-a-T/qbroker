@@ -1,7 +1,8 @@
 #!/usr/bin/make -f
 
 export PYTHONPATH=$(shell pwd)
-PYTEST:=env PYTHONPATH=$(shell pwd) py.test-3
+PYTHON ?= python3.5
+PYTEST:=env PYTHONPATH=$(shell pwd) $(PYTHON) /usr/bin/py.test-3
 
 test: test.cfg
 	@rm -f test.log
