@@ -45,7 +45,7 @@ def _unit(name,loop):
 def test_debug(unit1, unit2, loop):
 	unit1.debug_env(foo="bar")
 	res = (yield from unit2.rpc("qbroker.debug.test.one"))
-	assert set(res) == set(('eval','ping'))
+	assert set(res) == set(('eval','ping','env')), res
 	assert 'pong' in res['ping']
 	with pytest.raises(RuntimeError):
 		res = (yield from unit2.rpc("qbroker.debug.test.one", foo="bar"))
