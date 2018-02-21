@@ -25,6 +25,7 @@ from unittest.mock import Mock
 import contextlib
 import socket
 
+@pytest.mark.trio
 async def test_conn_not():
     with contextlib.closing(socket.socket()) as sock:
         sock.bind(('127.0.0.1', 0))
@@ -36,6 +37,7 @@ async def test_conn_not():
             assert False,"duh?"
     del cfg['amqp']['server']['port']
 
+@pytest.mark.trio
 async def test_rpc_basic():
     async with unit(1) as unit1:
         async with unit(2) as unit2:
@@ -63,6 +65,7 @@ async def test_rpc_basic():
                 except DeadLettered as exc:
                     pass
 
+@pytest.mark.trio
 async def test_rpc_decorated():
     async with unit(1) as unit1:
         async with unit(2) as unit2:
@@ -97,6 +100,7 @@ from qbroker.codec.registry import register_obj
 class _TestError(Exception):
     pass
 
+@pytest.mark.trio
 async def test_rpc_error():
     async with unit(1) as unit1:
         async with unit(2) as unit2:
@@ -112,6 +116,7 @@ async def test_rpc_error():
             else:
                 assert False, "No error raised"
 
+@pytest.mark.trio
 async def test_rpc_direct():
     async with unit(1) as unit1:
         async with unit(2) as unit2:
@@ -128,6 +133,7 @@ async def test_rpc_direct():
                 else:
                     assert False,"did not error"
 
+@pytest.mark.trio
 async def test_rpc_unencoded():
     async with unit(1) as unit1:
         async with unit(2) as unit2:
@@ -153,6 +159,7 @@ async def test_rpc_unencoded():
 def something_named(foo):
     return "bar "+foo
 
+@pytest.mark.trio
 async def test_rpc_named():
     async with unit(1) as unit1:
         async with unit(2) as unit2:
@@ -162,6 +169,7 @@ async def test_rpc_named():
             res = await unit1.rpc("something.named", "two")
             assert res == "bar two"
 
+@pytest.mark.trio
 async def test_rpc_explicit():
     async with unit(1) as unit1:
         async with unit(2) as unit2:
@@ -174,6 +182,7 @@ async def test_rpc_explicit():
             res = await unit1.rpc(something_named.__module__+".something_named", "two")
             assert res == "bar two"
 
+@pytest.mark.trio
 async def test_alert_callback():
     async with unit(1) as unit1:
         async with unit(2) as unit2:
@@ -196,6 +205,7 @@ async def test_alert_callback():
                 assert x == "bar dud", x
             assert n == 3
 
+@pytest.mark.trio
 async def test_alert_uncodeable():
     async with unit(1) as unit1:
         async with unit(2) as unit2:
@@ -206,6 +216,7 @@ async def test_alert_uncodeable():
             async for x in await unit2.alert("my.alert",callback=cb, timeout=TIMEOUT):
                 assert False, x
 
+@pytest.mark.trio
 async def test_alert_binary():
     async with unit(1) as unit1:
         async with unit(2) as unit2:
@@ -218,6 +229,7 @@ async def test_alert_binary():
             await trio.sleep(TIMEOUT/2)
             assert done[0]
 
+@pytest.mark.trio
 async def test_alert_oneway():
     async with unit(1) as unit1:
         async with unit(2) as unit2:
@@ -239,6 +251,7 @@ async def test_alert_oneway():
             alert_me3.assert_called_with(AlertMsg(data=dict(y='dud')))
             alert_me4.assert_called_with(AlertMsg(data=dict(z='dud')))
 
+@pytest.mark.trio
 async def test_alert_no_data():
     async with unit(1) as unit1:
         async with unit(2) as unit2:
@@ -263,6 +276,7 @@ async def test_alert_no_data():
             alert_me2.assert_called_with()
             assert n == 1
 
+@pytest.mark.trio
 async def test_alert_durable():
     async with unit(1) as unit1:
         async with unit(2) as unit2:
@@ -288,6 +302,7 @@ async def test_alert_durable():
             await trio.sleep(TIMEOUT*3/2)
             assert ncalls == 2
 
+@pytest.mark.trio
 async def test_alert_nondurable():
     async with unit(1) as unit1:
         async with unit(2) as unit2:
@@ -312,6 +327,7 @@ async def test_alert_nondurable():
             await trio.sleep(TIMEOUT*3/2)
             assert ncalls == 2
 
+@pytest.mark.trio
 async def test_alert_stop():
     async with unit(1) as unit1:
         async with unit(2) as unit2:
@@ -335,6 +351,7 @@ async def test_alert_stop():
             assert nhit == 2, nhit
             assert ncall == 1, ncall
 
+@pytest.mark.trio
 async def test_reg():
     async with unit(1) as unit1:
         async with unit(2) as unit2:
@@ -354,6 +371,7 @@ async def test_reg():
             assert res['app'] == unit1.app
             assert "qbroker.ping" in res['rpc'], res['rpc']
 
+@pytest.mark.trio
 async def test_alert_error():
     async with unit(1) as unit1:
         async with unit(2) as unit2:
@@ -375,6 +393,7 @@ async def test_alert_error():
             with pytest.raises(RuntimeError):
                 await unit2.poll_one("my.error1")
 
+@pytest.mark.trio
 async def test_reg_error():
     async with unit(1) as unit1:
         with pytest.raises(AssertionError):
@@ -382,6 +401,7 @@ async def test_reg_error():
         with pytest.raises(AssertionError):
             await unit1.register_alert("my.alert",Mock())
 
+@pytest.mark.trio
 async def test_rpc_bad_params():
     async with unit(1) as unit1:
         async with unit(2) as unit2:
@@ -395,6 +415,7 @@ async def test_rpc_bad_params():
             else:
                 assert False,"exception not called"
     
+@pytest.mark.trio
 async def test_rpc_unroutable():
     async with unit(1) as unit1:
         async with unit(2) as unit2:
@@ -409,6 +430,7 @@ async def test_rpc_unroutable():
                 assert False,"exception not called"
             assert call_me.call_count == 0
     
+@pytest.mark.trio
 async def test_reg_sync():
     u = open_broker("test.three", **cfg)
     @u.rpc("foo.bar")
