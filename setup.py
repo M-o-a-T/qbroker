@@ -69,7 +69,7 @@ REQUIREMENTS = [i.strip() for i in open("requirements.txt").readlines()
 setup(name='QBroker',
       license='GPLv3+',
       version='.'.join(str(x) for x in get_version()),
-      description='QBroker is a minimal async wrapper for RPC via AMQP',
+      description='QBroker is a Trio-compatible wrapper for RPC via AMQP',
       long_description=long_description,
       author='Matthias Urlichs',
       author_email='matthias@urlichs.de',
@@ -86,10 +86,9 @@ setup(name='QBroker',
           'Topic :: Software Development :: Libraries :: Application Frameworks',
           'Topic :: Software Development :: Libraries :: Python Modules',
           'Topic :: Utilities',
+          'Framework :: Trio',
       ],
       zip_safe=True,
       cmdclass = {'test': PyTest},
-
-
       )
 

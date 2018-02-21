@@ -21,30 +21,32 @@ import logging,sys,os
 logger = logging.getLogger("tests")
 
 def test_init(who):
-	if os.environ.get("TRACE","0") == '1':
-		level = logging.DEBUG
-	else:
-		level = logging.WARN
+    if os.environ.get("TRACE","0") == '1':
+        level = logging.DEBUG
+    else:
+        level = logging.WARN
 
-	logger = logging.getLogger(who)
-	logging.basicConfig(stream=sys.stderr,level=level)
+    logger = logging.getLogger(who)
+    logging.basicConfig(stream=sys.stderr,level=level)
 
-	return logger
+    return logger
 
 def load_cfg(cfg):
-	"""load a config file"""
-	global cfgpath
-	if os.path.exists(cfg):
-		pass
-	elif os.path.exists(os.path.join("tests",cfg)):
-		cfg = os.path.join("tests",cfg)
-	elif os.path.exists(os.path.join(os.pardir,cfg)):
-		cfg = os.path.join(os.pardir,cfg)
-	else:
-		raise RuntimeError("Config file '%s' not found" % (cfg,))
+    """load a config file"""
+    global cfgpath
+    if os.path.exists(cfg):
+        pass
+    elif os.path.exists(os.path.join("tests",cfg)):
+        cfg = os.path.join("tests",cfg)
+    elif os.path.exists(os.path.join(os.pardir,cfg)):
+        cfg = os.path.join(os.pardir,cfg)
+    else:
+        raise RuntimeError("Config file '%s' not found" % (cfg,))
 
-	cfgpath = cfg
-	with open(cfg) as f:
-		cfg = safe_load(f)
+    cfgpath = cfg
+    with open(cfg) as f:
+        cfg = safe_load(f)
 
-	return cfg
+    if 'config' in cfg:
+        cfg = cfg['config']
+    return cfg

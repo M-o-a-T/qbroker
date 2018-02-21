@@ -13,8 +13,8 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 ## Thus, please do not remove the next line, or insert any blank lines.
 ##BP
 
-import asyncio
 import inspect
+import weakref
 
 import logging
 logger = logging.getLogger(__name__)
@@ -22,11 +22,11 @@ logger = logging.getLogger(__name__)
 class Debugger(object):
 	"""QBroker insert for debugging."""
 
-	def __init__(self):
+	def __init__(self, broker):
+		self.broker = weakref.ref(broker)
 		self.env = {}
 
-	@asyncio.coroutine
-	def run(self,msg):
+	async def run(self,msg):
 		"""Evaluate a debugger command."""
 		msg.codec = 'application/json+repr'
 		args = msg.data if msg.data != '' else {}
@@ -36,20 +36,20 @@ class Debugger(object):
 			if args:
 				raise RuntimeError("Need 'cmd' parameter")
 			return dict((x[4:],getattr(self,x).__doc__) for x in dir(self) if x.startswith("run_"))
-		return (yield from getattr(self,'run_'+cmd)(**args))
+		return await getattr(self,'run_'+cmd)(**args)
 
-	@asyncio.coroutine
-	def run_env(self, **args):
+	async def run_env(self, **args):
 		"""Dump the debugger's environment"""
 		return dict((k,v) for k,v in self.env.items() if k != '__builtins__')
 
-	@asyncio.coroutine
-	def run_eval(self, code=None, mode="eval", **args):
-		"""Evaluate @code (string). @mode may be 'exec', 'single' or 'eval'/'vars' (default).
+	async def run_eval(self, code=None, mode="eval", **args):
+		"""\
+			Evaluate @code (string). @mode may be 'exec', 'single' or 'eval'/'vars'
+			(default: 'eval').
 		    All other arguments are used as local variables.
-			Non-local values are persistent.
+			Non-local variables are persistent. The result is returned.
 
-			'vars' is like 'eval' but applies vars() to the result.
+			The mode 'vars' behaves like 'eval' but applies vars() to the result.
 		    """
 		do_vars = False
 		if mode == "vars":
@@ -59,9 +59,15 @@ class Debugger(object):
 		ed = dict(self.env)
 		code = compile(code,"(debug)",mode)
 		loc = args.copy()
-		res = eval(code, self.env,loc)
-		if inspect.iscoroutine(res):
-			res = yield from res
+
+		self.env['broker'] = self.broker()
+		try:
+			res = eval(code, self.env, loc)
+			if inspect.iscoroutine(res):
+				res = await res
+		finally:
+			del self.env['broker']
+
 		for k,v in loc.items():
 			if k not in args:
 				self.env[k] = v
@@ -77,9 +83,8 @@ class Debugger(object):
 			r['__obj__'] = str(res)
 			res = r
 		return res
-	
-	@asyncio.coroutine
-	def run_ping(self):
+
+	async def run_ping(self):
 		"""Return 'pong'"""
 		return "pong"
 

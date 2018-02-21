@@ -203,8 +203,7 @@ class ServerError(Exception):
 		return r+"\n"+"".join(self._traceback)
 
 scalar_types = {type(None),float,bytes}
-from six import string_types,integer_types
-for s in string_types+integer_types: scalar_types.add(s)
+for s in (str,int): scalar_types.add(s)
 scalar_types = tuple(scalar_types) # isinstance() doesn't like sets
 
 class BaseCodec(object):
@@ -313,7 +312,7 @@ class BaseCodec(object):
 			# order non-recursive objects by completion time.
 			# Need to mangle the offset
 			d = objcache['done']
-			did[2] = (d,p,('_o_'+off[2:] if isinstance(off,string_types) and off.startswith('_o') else off))
+			did[2] = (d,p,('_o_'+off[2:] if isinstance(off,str) and off.startswith('_o') else off))
 			objcache['done'] = d+1
 		return res
 
@@ -359,7 +358,7 @@ class BaseCodec(object):
 			"""
 		res = {}
 
-		if isinstance(err,string_types):
+		if isinstance(err,str):
 			err = Exception(err)
 		# don't use the normal 
 		res['error'],cache = BaseCodec.encode(self,err)

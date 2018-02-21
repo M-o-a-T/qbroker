@@ -14,9 +14,16 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 ## Thus, please do not remove the next line, or insert any blank lines.
 ##BP
 
-import asyncio
-from qbroker.unit import Unit
-from qbroker.util.tests import load_cfg
+"""
+This is a sample client.
+
+Usage:
+    env PYTHONPATH=. client.py routing_key data…
+"""
+
+import trio
+import qbroker
+from tests.util import load_cfg
 from traceback import print_exc
 import logging
 import sys
@@ -24,41 +31,37 @@ import json
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
 import os
-cfg = os.environ.get("QBROKER","test.cfg")
-u=Unit("test.client", **load_cfg(cfg)['config'])
+cfg = load_cfg(os.environ.get("QBROKER","test.cfg"))
+u = None
 
-@asyncio.coroutine
-def example(type="example.hello",content=""):
-	rc = 0
-	yield from u.start(*sys.argv)
-	yield from asyncio.sleep(0.2) # allow monitor to attach
-	i = type.find('::')
-	if i > 0:
-		dest = type[i+2:]
-		type = type[:i]
-	else:
-		dest = None
-	if content is None:
-		content = ''
-	elif content == '-':
-		content = sys.stdin.read()
-	try:
-		content = json.loads(content)
-	except ValueError:
-		print("Warning: content is not JSON, sending as string", file=sys.stderr)
-	try:
-		res = (yield from u.rpc(type, _data=content, _dest=dest))
-		print(res)
-	except Exception:
-		print_exc()
-		rc = 2
-	finally:
-		yield from u.stop(rc)
+async def example(type="example.client",content=""):
+    async with qbroker.open_broker(type, cfg=cfg) as u:
+        rc = 0
+        await trio.sleep(0.2) # allow monitor to attach
+        i = type.find('::')
+        if i > 0:
+            dest = type[i+2:]
+            type = type[:i]
+        else:
+            dest = None
+        if content is None:
+            content = ''
+        elif content == '-':
+            content = sys.stdin.read()
+        try:
+            content = json.loads(content)
+        except ValueError:
+            print("Warning: content is not JSON, sending as string", file=sys.stderr)
+        try:
+            res = (await u.rpc(type, data=content, dest=dest))
+            print(res)
+        except Exception:
+            print_exc()
+            rc = 2
 
-def main(type=None, content=None):
-	loop = asyncio.get_event_loop()
-	loop.run_until_complete(example(type,content))
+def main(type="example.client", content=""):
+    trio.run(example,type,content)
 
 if __name__ == '__main__':
-	main(*sys.argv[1:])
+    main(*sys.argv[1:])
 

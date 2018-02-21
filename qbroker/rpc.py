@@ -13,45 +13,36 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 ## Thus, please do not remove the next line, or insert any blank lines.
 ##BP
 
-import asyncio
 import inspect
 
 from . import CC_MSG,CC_DICT,CC_DATA
-from ..util import attrdict, import_string, uuidstr
+from .util import attrdict, import_string, uuidstr
 
-if not hasattr(inspect,'iscoroutinefunction'):
-	inspect.iscoroutinefunction = inspect.isgeneratorfunction
-if not hasattr(inspect,'iscoroutine'):
-	inspect.iscoroutine = inspect.isgenerator
-if not hasattr(inspect,'isawaitable'):
-	def isawaitable(object):
-		return False
-	inspect.isawaitable = isawaitable
-
-@asyncio.coroutine
-def coro_wrapper(proc, *a,**k):
+async def coro_wrapper(proc, *a, **kw):
 	"""\
 		This code is responsible for turning whatever callable you pass in
 		into a "yield from"-style coroutine.
 		"""
-	proc = proc(*a,**k)
-	if hasattr(proc,'__await__'):
-		return (yield from proc.__await__())
-	if inspect.iscoroutine(proc) or inspect.isgenerator(proc):
-		proc = (yield from proc)
+	proc = proc(*a, **kw)
+	if inspect.isawaitable(proc):
+		proc = await proc
 	return proc
 
 class RPCservice(object):
 	"""\
-		This object handles one specific RPC service
+		This object wraps one specific RPC service.
 		"""
 	queue = None
 	is_alert = None
-	call_conv = None
-	durable = False
-	ttl = None
 
-	def __init__(self, fn,name=None, call_conv=CC_MSG, durable=None, ttl=None):
+	def __new__(cls, fn, name=None, **kw):
+		if isinstance(fn, RPCservice):
+			return fn
+		return object.__new__(cls)
+
+	def __init__(self, fn, name=None, call_conv=CC_MSG, durable=None, ttl=None):
+		if isinstance(fn, RPCservice):
+			return
 		if name is None:
 			name = fn.__module__+'.'+fn.__name__
 		self.fn = fn
@@ -59,12 +50,10 @@ class RPCservice(object):
 		self.call_conv = call_conv
 		self.durable = durable
 		self.uuid = uuidstr()
-		if ttl is not None:
-			self.ttl = ttl
+		self.ttl = ttl
 	
-	@asyncio.coroutine
-	def run(self, *a,**k):
-		res = (yield from coro_wrapper(self.fn,*a,**k))
+	async def run(self, *a,**k):
+		res = await coro_wrapper(self.fn, *a, **k)
 		return res
 
 	def __str__(self):

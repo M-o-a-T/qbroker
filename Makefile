@@ -10,7 +10,7 @@ test: test.cfg
 t: test.cfg
 	@rm -f test.log
 	$(PYTEST) -s -x -v
-# --cov-report term-missing --cov-config .coveragerc --cov=qbroker.unit --cov=qbroker.proto --assert=plain
+# --cov-report term-missing --cov-config .coveragerc --cov=qbroker --cov=qbroker.proto --assert=plain
 
 test.cfg:
 	@cp test.cfg.sample $@

@@ -13,7 +13,7 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 ## Thus, please do not remove the next line, or insert any blank lines.
 ##BP
 
-import asyncio
+import trio
 from time import time
 
 from . import CC_MSG,CC_DICT,CC_DATA
@@ -24,6 +24,8 @@ from qbroker.codec.registry import BaseCodec, register_obj
 obj_codec = BaseCodec()
 obj_codec.code_lists = 2
 
+__all__ = ['RequestCancelledError', 'MsgError', 'RequestMsg','ResponseMsg','AlertMsg','PollMsg']
+
 _types = {}
 _fmap = {
 	}
@@ -32,6 +34,12 @@ def fmap(s):
 	if r is _NOTGIVEN:
 		_fmap[s] = r = s.replace('-','_')
 	return r
+
+class RequestCancelledError(Exception):
+	def __init__(self, rpc):
+		self.rpc = rpc
+	def __repr__(self):
+		return '<%s %s>' % (self.__class__.__name__, self.rpc)
 
 class FieldCollect(type):
 	"""\
@@ -183,7 +191,7 @@ class BaseMsg(_MsgPart):
 	data = None
 	error = None
 
-	def __init__(self, data=None):
+	def __init__(self, data=None, **kwargs):
 		if not hasattr(self,'message_id'):
 			self.message_id = uuidstr()
 
@@ -200,9 +208,9 @@ class BaseMsg(_MsgPart):
 			if m is not None:
 				setattr(props,fmap(f), m)
 		props.timestamp = int(time())
-		props.user_id = conn.cfg['login']
+		props.user_id = conn.cfg.server['login']
 		props.content_type = codec.CODEC
-		props.app_id = conn.unit().uuid
+		props.app_id = conn.uuid
 		# props.delivery_mode = 2
 		if self.error is not None:
 			obj['error'] = obj_codec.encode(self.error)
@@ -212,7 +220,7 @@ class BaseMsg(_MsgPart):
 		data = self.data
 		if data is None:
 			data = ""
-		return data,props
+		return codec.encode(data),props
 
 	def set_error(self, *a, **k):
 		self.error = MsgError.build(*a,**k)
@@ -257,13 +265,27 @@ class _RequestMsg(BaseMsg):
 	"""A request packet. The remaining fields are data elements."""
 	fields = "routing-key reply-to"
 
-	def __init__(self, routing_key=None, data=None):
-		super().__init__()
+	def __init__(self, routing_key=None, _unit=None, data=None, **kwargs):
+		super().__init__(**kwargs)
 		self.routing_key = routing_key
 		self.data = data
+		self._q = trio.Queue(99)  # TODO get from config
 
 	def make_response(self, **data):
 		return ResponseMsg(self, **data)
+
+	async def read(self):
+		msg = await self._q.get()
+		if msg is None:
+			raise RequestCancelledError(self)
+		return msg
+
+	async def recv_reply(self, reply):
+		"""Client side: Incoming reply."""
+		self._q.put_nowait(reply)
+
+	async def cancel(self):
+		self._q.put_nowait(None)
 
 #	def make_error_response(self, exc, eid,part, fail=False):
 #		res = ResponseMsg(self)
@@ -275,67 +297,31 @@ class RequestMsg(_RequestMsg):
 	_exchange = "rpc" # lookup key for the exchange name
 	_timer = "rpc" # lookup key for the timeout
 
-	def __init__(self, routing_key=None, _unit=None, data=None):
-		super().__init__(routing_key=routing_key, data=data)
+	def __init__(self, routing_key=None, _unit=None, data=None, **kwargs):
+		super().__init__(routing_key=routing_key, _unit=_unit, data=data, **kwargs)
 		if _unit is not None:
 			self.reply_to = _unit.uuid
-
-	@asyncio.coroutine
-	def recv_reply(self, f,reply):
-		"""Client side: Incoming reply. @f is the future to trigger when complete."""
-		f.set_result(reply)
 
 class AlertMsg(_RequestMsg):
 	"""An alert which is not replied to"""
 	type = "alert"
 	_exchange = "alert" # lookup key for the exchange name
 
-	def __init__(self, routing_key=None, _unit=None, data=None):
-		super().__init__(routing_key=routing_key, data=data)
-		# do not set reply_to
-
 class PollMsg(AlertMsg):
 	"""An alert which requests replies"""
 	_timer = "poll" # lookup key for the timeout
 
-	def __init__(self, routing_key=None, _unit=None, callback=None,call_conv=CC_MSG, data=None):
-		super().__init__(routing_key=routing_key, _unit=_unit, data=data)
+	def __init__(self, routing_key=None, _unit=None, data=None, **kwargs):
+		super().__init__(routing_key=routing_key, _unit=_unit, data=data, **kwargs)
 		if _unit is not None:
 			self.reply_to = _unit.uuid
-		self.callback = callback
-		self.call_conv = call_conv
-		self.replies = 0
-
-	@asyncio.coroutine
-	def recv_reply(self, f,msg):
-		"""Incoming reply. @f is the future to trigger when complete."""
-		try:
-			if self.call_conv == CC_MSG:
-				a=(msg,); k={}
-			elif msg.failed:
-				return # ignore error replies
-			elif self.call_conv == CC_DICT:
-				a=(); k=msg.data
-			elif self.call_conv == CC_DATA:
-				a=(msg.data,); k={}
-			else: # pragma: no cover
-				raise RuntimeError("Unknown encoding: %s"%self.call_conv) 
-			r = self.callback(*a,**k)
-			if asyncio.iscoroutine(r):
-				yield from r
-		except StopIteration:
-			f.set_result(self.replies+1)
-		except Exception as exc:
-			f.set_exception(exc)
-		else:
-			self.replies += 1
 
 class ResponseMsg(BaseMsg):
 	type = "reply"
 	fields = "correlation-id"
 
-	def __init__(self,request=None, data=None):
-		super().__init__(data=data)
+	def __init__(self, request=None, data=None, **kwargs):
+		super().__init__(data=data, **kwargs)
 		if request is not None:
 			self.correlation_id = request.message_id
 

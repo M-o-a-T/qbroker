@@ -14,34 +14,44 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 ## Thus, please do not remove the next line, or insert any blank lines.
 ##BP
 
-import asyncio
-from qbroker.unit import Unit, CC_DATA
-from qbroker.util.tests import load_cfg
+"""
+This code simulates a concurrent server.
+It listens for "example.server" events, thinks about them, and returns a
+reply.
+
+The number of concurrently-running calls is limited (globally) by 
+the "config.amqp.limits.rpc.workers" setting.
+"""
+
+import trio
+import qbroker
+from qbroker import CC_DICT
+from tests.util import load_cfg
 
 import logging
 import sys
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
 import os
-cfg = os.environ.get("QBROKER","test.cfg")
-u=Unit("test.server", **load_cfg(cfg)['config'])
+cfg = load_cfg(os.environ.get("QBROKER","test.cfg"))
 
-@u.register_rpc("example.hello", call_conv=CC_DATA)
-@asyncio.coroutine
-def hello(name="Joe"):
-	yield from asyncio.sleep(1)
-	return "Hello %s!" % name
-	
-@asyncio.coroutine
-def example():
-	yield from u.start()
-	try:
-		yield from asyncio.sleep(200)
-	finally:
-		yield from u.stop()
+async def hello(name="Joe", **kw):
+    print("working for", name)
+    await trio.sleep(5)  # simulate doing some work in parallel
+    print("DONE working for", name)
+    return "Hello %s!" % name
+    
+async def example():
+    async with qbroker.open_broker("example.server", cfg=cfg) as u:
+        u.register_rpc(hello, "example.hello", call_conv=CC_DICT)
+        await trio.sleep(200)
 
 def main():
-	loop = asyncio.get_event_loop()
-	loop.run_until_complete(example())
-main()
+    trio.run(example)
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("Terminated.", file=sys.stderr)
 

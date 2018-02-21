@@ -14,9 +14,10 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 ## Thus, please do not remove the next line, or insert any blank lines.
 ##BP
 
-import asyncio
-from qbroker.unit import Unit, CC_DATA
-from qbroker.util.tests import load_cfg
+import trio
+import qbroker
+from qbroker import CC_DATA
+from tests.util import load_cfg
 from pprint import pprint
 from traceback import print_exc
 
@@ -25,35 +26,39 @@ import sys
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
 import os
-cfg = os.environ.get("QBROKER","test.cfg")
-u=Unit("test.client.list_servers", **load_cfg(cfg)['config'])
+cfg = load_cfg(os.environ.get("QBROKER","test.cfg"))
+u = None
 
 def cb(data):
-	data['_broadcast']=True
-	pprint(data)
-	f = asyncio.ensure_future(u.rpc('qbroker.ping', _uuid=data['uuid']))
-	def d(f):
-		try:
-			pprint(f.result())
-		except Exception:
-			print_exc()
-	f.add_done_callback(d)
+    data['_broadcast']=True
+    pprint(data)
+    f = asyncio.ensure_future(u.rpc('qbroker.ping', _uuid=data['uuid']))
+    def d(f):
+        try:
+            pprint(f.result())
+        except Exception:
+            print_exc()
+    f.add_done_callback(d)
 
-@asyncio.coroutine
-def example(app=None):
-	yield from u.start()
-	yield from asyncio.sleep(1)
-	d = {}
-	if app is not None:
-		d['app'] = app
-	try:
-		yield from u.alert("qbroker.ping",callback=cb,call_conv=CC_DATA, timeout=2, _data=d)
-	finally:
-		yield from u.stop()
+async def example():
+    async with qbroker.open_broker("example.list_servers", cfg=cfg) as _u:
+        global u
+        u = _u
+        await asyncio.sleep(1)
+        d = {}
+        if app is not None:
+            d['app'] = app
+        async with aclosing(u.poll("qbroker.ping",call_conv=CC_DATA, timeout=2, _data=d)) as r:
+            for msg in r:
+                cb(msg)
 
 def main():
-	import sys
-	loop = asyncio.get_event_loop()
-	loop.run_until_complete(example(*sys.argv[1:]))
-main()
+    trio.run(example)
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("Terminated.", file=sys.stderr)
+
 

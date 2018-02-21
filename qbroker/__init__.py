@@ -14,21 +14,25 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 ## Thus, please do not remove the next line, or insert any blank lines.
 ##BP
 
-__VERSION__ = (0,30,8)
+import trio
 
-# Python 3.5 deprecates .async in favor of .ensure_future
+import logging
+logger = logging.getLogger(__name__)
 
-# Load all these symbols from setup, because of possible load order conflicts
-def setup(*a,**k):
-	import qbroker.util.sync as sync
-	sync.setup(*a,**k)
+from async_generator import asynccontextmanager
 
-	import asyncio
-	if not hasattr(asyncio,'ensure_future'):
-		asyncio.ensure_future = asyncio.async
+@asynccontextmanager
+async def open_broker(*args, **kwargs):
+	"""\
+		Context manager to create a restarting AMQP connection.
+		"""
+	from .broker import Broker
+	async with trio.open_nursery() as nursery:
+		async with Broker(*args, nursery=nursery, **kwargs) as b:
+			yield b
 
-	global Unit,make_unit
-	from qbroker.unit import Unit, make_unit
+# Calling conventions for RPC-registered procedures
+CC_MSG="_msg" # pass the whole message (default)
+CC_DATA="_data" # pass the data element
+CC_DICT="_dict" # assume data is a dict and apply it
 
-loop = None # set by setup
-# unit_sync() and/or unit_gevent() will be added by qbroker.util.sync.setup()

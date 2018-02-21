@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, print_function, division, unicode_literals
 ##
@@ -13,33 +14,13 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 ## Thus, please do not remove the next line, or insert any blank lines.
 ##BP
 
-##
-## Configuration: look up, in order:
-## yaml_cfg.config
-## etcd.specific.APP.config
-## etcd.config
-## 
-
-import asyncio
-from ..util import attrdict
-
-import logging
-logger = logging.getLogger(__name__)
-
-# Calling conventions for RPC-registered procedures
-CC_MSG="_msg" # pass the whole message (default)
-CC_DATA="_data" # pass the data element
-CC_DICT="_dict" # assume data is a dict and apply it
-
 DEFAULT_CONFIG=dict(
-	amqp=dict(
 		server=dict(
 			host='localhost',
 			login='guest',
 			password='guest',
-			virtualhost='/qbroker',
+			virtualhost='qbroker',
 			ssl=False,
-			connect_timeout=10,
 		),
 		exchanges=dict(	  # all are persistent
 			alert='alert', # topic: broadcast messages, may elicit multiple replies
@@ -49,36 +30,40 @@ DEFAULT_CONFIG=dict(
 		),
 		queues=dict(
 			alert='alert_',# plus the unit UUID. Nonpersistent.
-			msg='msg.',# plus the routing key. Persistent alerts.
+			msg='msg.', # plus the routing key. Persistent alerts.
 			rpc='rpc_',	# plus the command name. Persistent.
-			reply='reply_',# plus the unit UUID
+			reply='reply_',# plus the unit UUID.
 			dead='dead',   # no add-on. Persistent. No TTL here!
 		),
 		handlers=dict(
 			dead=False, # add a handler for dead messages
-			debug=False, # add code to debug the connection
+			debug=False, # add hooks to introspect/debug the connection
 		),
 		codec='DEFAULT',
 		ttl=dict(
-			rpc=10,
+			rpc=10, # seconds before being dead lettered, when not read
+		),
+		limits=dict(
+			rpc=dict(
+				workers=10, # parallel handlers
+				queue=99, # max nr of waiting tasks
+			),
+			alert=dict(
+				workers=5, # parallel handlers
+				queue=99, # max nr of waiting tasks
+			),
 		),
 		timeout=dict(
-			rpc=15,
-			poll=30,
+			connect=30, # open link
+			rpc=15, # waiting for RPC reply
+			poll=30, # waiting for alert replies
+			reconnect=30, # before retrying
 		),
-		retries=dict(),
-	))
-
-@asyncio.coroutine
-def make_unit(*a, _setup=None, **kw):
-	"""\
-		Create and start a QBroker unit.
-
-		See qbroker.unit.Unit for parameters.
-		"""
-	u = Unit(*a,**kw)
-	yield from u.start(_setup=_setup)
-	return u
-
-from .unit import Unit
+		retries=dict(
+			connect=0, # initially
+			rpc=0, # when timed out
+			poll=0, # if no reply
+			reconnect=9999, # retries before giving up
+		),
+	)
 

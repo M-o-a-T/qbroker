@@ -13,84 +13,75 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 ## Thus, please do not remove the next line, or insert any blank lines.
 ##BP
 
+import trio
 import pytest
 import os
-import asyncio
-from qbroker.unit import Unit, CC_DICT,CC_DATA,CC_MSG
-from testsupport import unit, TIMEOUT, cfg
-from qbroker.unit.msg import MsgError,AlertMsg
-from qbroker.unit.conn import DeadLettered
+from qbroker import CC_DICT,CC_DATA,CC_MSG
+from qbroker import open_broker
+from qbroker.msg import MsgError,AlertMsg
+from qbroker.conn import DeadLettered
+from .testsupport import TIMEOUT, cfg, unit
 import unittest
 from unittest.mock import Mock
 
-def test_basic(loop):
-	u = Unit("test.zero", loop=loop, **cfg)
-	loop.run_until_complete(u.start())
-	loop.run_until_complete(u.stop())
+@pytest.mark.trio
+async def test_basic():
+    async with open_broker("test.zero", **cfg) as b:
+        await trio.sleep(TIMEOUT/2)
 
-@pytest.yield_fixture
-def unit1(loop):
-	yield from _unit("one",loop)
-@pytest.yield_fixture
-def unit2(loop):
-	yield from _unit("two",loop)
-def _unit(name,loop):
-	u = loop.run_until_complete(unit("test."+name, loop=loop, **cfg))
-	yield u
-	x = u.stop()
-	loop.run_until_complete(x)
-
-@pytest.mark.run_loop
-@asyncio.coroutine
-def test_debug(unit1, unit2, loop):
-	unit1.debug_env(foo="bar")
-	res = (yield from unit2.rpc("qbroker.debug.test.one"))
-	assert set(res) == set(('eval','ping','env')), res
-	assert 'pong' in res['ping']
-	with pytest.raises(RuntimeError):
-		res = (yield from unit2.rpc("qbroker.debug.test.one", foo="bar"))
-	with pytest.raises(SyntaxError):
-		yield from unit2.rpc("qbroker.debug.test.one",cmd="eval",code="blubb(")
-	res = (yield from unit2.rpc("qbroker.debug.test.one", cmd="ping"))
-	assert res == "pong"
-	res = (yield from unit2.rpc("qbroker.debug.test.one", cmd="eval",code="foo"))
-	assert res == "bar"
-	res = (yield from unit2.rpc("qbroker.debug.test.one", cmd="eval",code="baz",baz="quux"))
-	assert res == "quux"
-	res = (yield from unit2.rpc("qbroker.debug.test.one", cmd="eval",code="what='ever'",mode="single",what="duh"))
-	assert res in (None,"")
-	with pytest.raises(NameError):
-		res = (yield from unit2.rpc("qbroker.debug.test.one", cmd="eval",code="what"))
-	res = (yield from unit2.rpc("qbroker.debug.test.one", cmd="eval",code="what='ever'",mode="single"))
-	assert res in (None,"")
-	res = (yield from unit2.rpc("qbroker.debug.test.one", cmd="eval",code="what"))
-	assert res == "ever"
-	yield from unit2.rpc("qbroker.debug.test.one",cmd="eval",mode="exec",code="""\
+@pytest.mark.trio
+async def test_debug():
+    async with unit(1) as unit1:
+        async with unit(2) as unit2:
+            unit1.debug_env(foo="bar")
+            res = await unit2.rpc("qbroker.debug.test.debug.debug.1")
+            assert set(res) == set(('eval','ping','env')), res
+            assert 'pong' in res['ping'], res
+            with pytest.raises(RuntimeError):
+                res = await unit2.rpc("qbroker.debug.test.debug.debug.1", dict(foo="bar"))
+            with pytest.raises(SyntaxError):
+                await unit2.rpc("qbroker.debug.test.debug.debug.1",dict(cmd="eval",code="blubb("))
+            res = await unit2.rpc("qbroker.debug.test.debug.debug.1", dict(cmd="ping"))
+            assert res == "pong", res
+            res = await unit2.rpc("qbroker.debug.test.debug.debug.1", dict(cmd="eval",code="foo"))
+            assert res == "bar", res
+            res = await unit2.rpc("qbroker.debug.test.debug.debug.1", dict(cmd="eval",code="baz",baz="quux"))
+            assert res == "quux", res
+            res = await unit2.rpc("qbroker.debug.test.debug.debug.1", dict(cmd="eval",code="what='ever'",mode="single",what="duh"))
+            assert res in (None,"")
+            with pytest.raises(NameError):
+                res = await unit2.rpc("qbroker.debug.test.debug.debug.1", dict(cmd="eval",code="what"))
+            res = await unit2.rpc("qbroker.debug.test.debug.debug.1", dict(cmd="eval",code="what='ever'",mode="single"))
+            assert res in (None,""), res
+            res = await unit2.rpc("qbroker.debug.test.debug.debug.1", dict(cmd="eval",code="what"))
+            assert res == "ever", res
+            await unit2.rpc("qbroker.debug.test.debug.debug.1",dict(cmd="eval",mode="exec",code="""\
 def hello():
-	return "yo"
-		""")
-	res = (yield from unit2.rpc("qbroker.debug.test.one", cmd="eval",code="hello()"))
-	assert res == "yo"
+    return "yo"
+"""))
+            res = await unit2.rpc("qbroker.debug.test.debug.debug.1", dict(cmd="eval",code="hello()"))
+            assert res == "yo", res
 
-@pytest.mark.run_loop
-@asyncio.coroutine
-def test_reconnect(unit1, unit2, loop):
-	return
-	unit1.debug_env(conn=unit1,xconn=unit2,retry=0)
-	yield from unit2.rpc("qbroker.debug.test.one",cmd="eval",mode="exec",code="""\
+@pytest.mark.trio
+async def test_reconnect():
+    return
+    async with unit(1) as unit1:
+        async with unit(2) as unit2:
+            unit1.debug_env(conn=unit1,xconn=unit2,retry=0)
+            await unit2.rpc("qbroker.debug.test.debug.reconnect.1",cmd="eval",mode="exec",code="""\
 def test_conn(c):
-	global retry
-	retry += 1
-	if retry in (2,4):
-		import os
-		os.close(c.conn.amqp._stream_reader._transport._sock_fd)
-	return retry
-	""")
+    global retry
+    retry += 1
+    if retry in (2,4):
+        import os
+        os.close(c.conn.amqp._stream_reader._transport._sock_fd)
+    return retry
+    """)
 
-	res = (yield from unit2.rpc("qbroker.debug.test.one", cmd="eval",code="test_conn(conn)"))
-	assert res == 1
-	res = (yield from unit2.rpc("qbroker.debug.test.one", cmd="eval",code="test_conn(conn)", _timeout=2,_retries=1))
-	assert res == 3
-	res = (yield from unit2.rpc("qbroker.debug.test.one", cmd="eval",code="test_conn(xconn)", _timeout=2,_retries=1))
-	assert res == 5
+            res = await unit2.rpc("qbroker.debug.test.debug.reconnect.1", cmd="eval",code="test_conn(conn)")
+            assert res == 1
+            res = await unit2.rpc("qbroker.debug.test.debug.reconnect.1", cmd="eval",code="test_conn(conn)", _timeout=2,_retries=1)
+            assert res == 3
+            res = await unit2.rpc("qbroker.debug.test.debug.reconnect.1", cmd="eval",code="test_conn(xconn)", _timeout=2,_retries=1)
+            assert res == 5
 

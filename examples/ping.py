@@ -14,40 +14,31 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 ## Thus, please do not remove the next line, or insert any blank lines.
 ##BP
 
-import asyncio
-from qbroker.unit import Unit
-from qbroker.util.tests import load_cfg
+import trio
+import qbroker
+from tests.util import load_cfg
 import logging
 import sys
 from pprint import pprint
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
 import os
-cfg = os.environ.get("QBROKER","test.cfg")
-u=Unit("test.ping", **load_cfg(cfg)['config'])
+cfg = load_cfg(os.environ.get("QBROKER","test.cfg"))
+u=None
 
-@asyncio.coroutine
-def cb(r):
-	pprint(r.data)
-	if False:
-		yield from None
-
-@asyncio.coroutine
-def example():
-	yield from u.start()
-	yield from asyncio.sleep(0.2) # allow monitor to attach
-	try:
-		yield from asyncio.wait_for(u.alert("dabroker.ping",callback=cb), timeout=3)
-	except asyncio.TimeoutError:
-		pass
-	finally:
-		yield from u.stop()
+async def example():
+    async with qbroker.open_broker("example.ping", cfg=cfg) as _u:
+        global u
+        u = _u
+        await trio.sleep(0.2) # allow monitor to attach
+        async for r in u.alert("dabroker.ping", timeout=3):
+            pprint(r.data)
 
 def main():
-	loop = asyncio.get_event_loop()
-	loop.run_until_complete(example())
-try:
-	main()
-except KeyboardInterrupt:
-	pass
+    trio.run(example)
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        pass
 

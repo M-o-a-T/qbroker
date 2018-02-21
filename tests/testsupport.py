@@ -13,34 +13,30 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 ## Thus, please do not remove the next line, or insert any blank lines.
 ##BP
 
-import asyncio
 import os
-from qbroker.unit import make_unit, DEFAULT_CONFIG
-from qbroker.util import combine_dict
+import qbroker
+import inspect
+from async_generator import asynccontextmanager
 
 TIMEOUT=0.5
 
-from qbroker.util.tests import load_cfg
+from .util import load_cfg
 CFG="test.cfg"
-for x in range(10):
-	if os.path.exists(CFG):
-		break
-	CFG=os.path.join(os.pardir,CFG)
-cfg = load_cfg(CFG)['config']
-cfg = combine_dict(cfg, DEFAULT_CONFIG)
+for x in range(3):
+    if os.path.exists(CFG):
+        break
+    CFG=os.path.join(os.pardir,CFG)
+cfg = load_cfg(CFG)
 
-
-@asyncio.coroutine
-def unit(name,*a,**k):
-	@asyncio.coroutine
-	def setup(c):
-		ch = yield from c.channel()
-		cf = cfg['amqp']['exchanges']
-		yield from ch.exchange_delete(cf['alert'])
-		yield from ch.exchange_delete(cf['rpc'])
-		yield from ch.exchange_delete(cf['dead'])
-		yield from ch.exchange_delete(cf['reply'])
-		yield from ch.close()
-	u = yield from make_unit(name,*a,_setup=(setup if name in ("test.ping.A",) else None),**k)
-	return u
-
+def unit(name):
+    f = inspect.currentframe().f_back
+    n = f.f_code.co_name
+    if n.startswith("test_"):
+        n=n[5:]
+    fn = f.f_code.co_filename
+    if fn.endswith('.py'):
+        fn = fn[:-3]
+    i = fn.index("/test_")
+    if i > -1:
+        fn = fn[i+6:]
+    return qbroker.open_broker("test.%s.%s.%s"%(fn,n,name), cfg=cfg)

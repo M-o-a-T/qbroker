@@ -49,19 +49,19 @@ def import_string(name):
 			raise AttributeError(name)
 
 def combine_dict(*d):
-	res = {}
+	res = attrdict()
 	keys = {}
-	if len(d) <= 1:
-		return d
+	if len(d) == 0:
+		return res
+	if len(d) == 1 and isinstance(d[0], attrdict):
+		return d[0]
 	for kv in d:
 		for k,v in kv.items():
 			if k not in keys:
 				keys[k] = []
 			keys[k].append(v)
 	for k,v in keys.items():
-		if len(v) == 1:
-			res[k] = v[0]
-		elif not isinstance(v[0],Mapping):
+		if not isinstance(v[0],Mapping):
 			for vv in v[1:]:
 				assert not isinstance(vv,Mapping)
 			res[k] = v[0]

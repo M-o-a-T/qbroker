@@ -1,3 +1,2 @@
-aiogevent
 pytest
-pytest_asyncio
+pytest_trio

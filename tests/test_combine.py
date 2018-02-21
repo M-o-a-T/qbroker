@@ -14,58 +14,59 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 ##BP
 
 from qbroker.util import combine_dict
-from py.test import raises
+from pytest import raises
 
 def test_basic():
-	d1 = combine_dict(
-		dict(
-			a=1,
-		), dict(
-			b=2,
-		), dict(
-			c=3,
-			a=4,
-		)
-	)
-	d2 = dict(
-			a=1,
-			b=2,
-			c=3,
-	)
-	assert d1 == d2
+    d1 = combine_dict(
+        dict(
+            a=1,
+        ), dict(
+            b=2,
+        ), dict(
+            c=3,
+            a=4,
+        )
+    )
+    d2 = dict(
+            a=1,
+            b=2,
+            c=3,
+    )
+    assert d1 == d2
 
 def test_complex():
-	x = dict( a=dict(x=10))
-	y = dict( b=2, a=dict(x=99,y=20))
-	z = dict( c=dict(xx=11), a=dict(z=30))
-	d1 = combine_dict(x,y,z)
-	d2 = dict(
-			a=dict(x=10,y=20,z=30),
-			b=2,
-			c=dict(xx=11),
-	)
-	assert d1 == d2
-	assert d1['c'] is z['c']
-	assert not (d1['a'] is x['a'])
-	assert not (d1['a'] is y['a'])
-	assert not (d1['a'] is z['a'])
+    x = dict( a=dict(x=10))
+    y = dict( b=2, a=dict(x=99,y=20))
+    z = dict( c=dict(xx=11), a=dict(z=30))
+    d1 = combine_dict(x,y,z)
+    d2 = dict(
+            a=dict(x=10,y=20,z=30),
+            b=2,
+            c=dict(xx=11),
+    )
+    assert d1 == d2
+    assert d1['c'] == z['c']
+    assert d1['c'] is not z['c']  # always deeply copying
+    assert not (d1['a'] is x['a'])
+    assert not (d1['a'] is y['a'])
+    assert not (d1['a'] is z['a'])
 
 def test_no_merge():
-	
-	with raises((AssertionError,AttributeError)):
-		combine_dict(
-			dict(
-				a=dict(b=3),
-			), dict(
-				a=2,
-			)
-		)
-	with raises((AssertionError,AttributeError)):
-		combine_dict(
-			dict(
-				a=2,
-			), dict(
-				a=dict(b=3),
-			)
-		)
+    
+    with raises((AssertionError,AttributeError)):
+        combine_dict(
+            dict(
+                a=dict(b=3),
+            ), dict(
+                a=2,
+            )
+        )
+    with raises((AssertionError,AttributeError)):
+        combine_dict(
+            dict(
+                a=2,
+            ), dict(
+                a=dict(b=3),
+            )
+        )
 
