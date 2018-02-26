@@ -23,7 +23,7 @@ from .config import DEFAULT_CONFIG
 from .util import uuidstr, combine_dict
 from collections.abc import Mapping
 from aioamqp.exceptions import ChannelClosed
-from async_generator import asynccontextmanager
+from async_generator import asynccontextmanager, aclosing
 from functools import partial
 
 import logging
@@ -38,6 +38,7 @@ class Broker:
     restarting = None
     args = ()
     debug = None
+    _running = False
 
     def __init__(self, app, *args, hidden=False, nursery=None, idle_proc=None, **cfg):
         """\
@@ -93,12 +94,8 @@ class Broker:
             cfg = cfg['amqp']
         self.cfg = combine_dict(cfg, DEFAULT_CONFIG)
 
-        self.rpc_endpoints = {}
-        self.alert_endpoints = {}
-        self.rpc_calls= {}
-        self.alert_calls= {}
-        self._did_reg_rpc = set()
-        self._did_reg_alert = set()
+        self._endpoints = {}
+        self._reg_endpoints = set()
 
         self.codec = self.cfg.codec
 
@@ -107,26 +104,43 @@ class Broker:
             self.debug = Debugger(self)
 
         if not self.hidden:
-            self.register_alert(self._alert_ping, "qbroker.ping",call_conv=CC_DATA)
-            self.register_rpc(self._reply_ping,"qbroker.ping")
-            self.register_alert(self._alert_ping, "qbroker.app."+self.app, call_conv=CC_DATA)
-            self.register_rpc(self._reply_ping,"qbroker.app."+self.app)
+            self.on_rpc(self._alert_ping, "qbroker.ping",call_conv=CC_DATA, multiple=True)
+            self.on_rpc(self._reply_ping,"qbroker.ping")
+            self.on_rpc(self._alert_ping, "qbroker.app."+self.app, call_conv=CC_DATA, multiple=True)
+            self.on_rpc(self._reply_ping,"qbroker.app."+self.app)
+            self.on_rpc(self._reply_ping,"qbroker.uuid."+self.uuid)
         if self.debug is not None:
-            self.register_rpc(self._reply_debug, "qbroker.debug."+self.app, call_conv=CC_MSG)
+            self.on_rpc(self._reply_debug, "qbroker.debug.app."+self.app, call_conv=CC_MSG)
+            self.on_rpc(self._reply_debug, "qbroker.debug.uuid."+self.uuid, call_conv=CC_MSG)
             # uuid: done in conn setup
 
     async def __aenter__(self):
-        await self.nursery.start(self._keep_connected)
+        if self._running:
+            raise RuntimeError("This broker is already running")
+        self._running = True
+        try:
+            await self.nursery.start(self._keep_connected)
+        except BaseException:
+            self._running = False
+            raise
         return self
 
     async def __aexit__(self, *tb):
-        if self.conn is not None:
-            with trio.open_cancel_scope(shield=True):
-                try:
+        self.nursery.cancel_scope.cancel()
+
+        with trio.open_cancel_scope(shield=True):
+            try:
+                if self.conn is not None:
                     await self.conn.aclose()
-                finally:
-                    self.conn = None
-                    self.nursery.cancel_scope.cancel()
+            finally:
+                self.conn = None
+                self._running = False
+
+    def __enter__(self):
+        raise RuntimeError("You need to use 'asny with'")
+
+    def __exit__(self, *tb):
+        raise RuntimeError("You need to use 'asny with'")
 
     async def _run_idle(self,task_status=trio.TASK_STATUS_IGNORED):
         """
@@ -144,12 +158,12 @@ class Broker:
         """Task which keeps a connection going"""
         class TODOexception(Exception):
             pass
+        self.restarting = None
         while not self._stop.is_set():
             try:
-                self._did_reg_rpc = set()
-                self._did_reg_alert = set()
-
+                self._reg_endpoints = set()
                 async with Connection(self.cfg, self.uuid).connect(self) as conn:
+                    self.restarting = False
                     self.conn = conn
                     self._connected.set()
                     if self._idle is not None:
@@ -162,8 +176,11 @@ class Broker:
                 self._connected.clear()
                 logger.exception("Error. TODO Reconnecting after a while.")
             finally:
-                self.conn = None
+                if self.conn is not None:
+                    await self.conn.aclose()
+                    self.conn = None
 
+            self.restarting = True
             if self._stop.is_set():
                 break
             if self.idle_proc is not None:
@@ -172,114 +189,94 @@ class Broker:
             with trio.move_on_after(10):
                 await self._stop.wait()
 
-        self.nursery.cancel_scope.cancel()
-
     async def _queue_run(self, task_status=trio.TASK_STATUS_IGNORED):
         task_status.started()
         async for typ,arg in self._queue:
-            if self.conn is None:
+            if self.conn is None: # do it later
                 continue
-            if typ == "reg_rpc":
-                await self._do_register_rpc(arg)
-            elif typ == "reg_alert":
-                await self._do_register_alert(arg)
-            elif typ == "unreg_rpc":
-                await self._do_unregister_rpc(arg)
-            elif typ == "unreg_alert":
-                await self._do_unregister_alert(arg)
+            if typ == "reg":
+                await self._do_register(arg)
             elif typ == "wait":
                 arg.set()
             else:
                 raise RuntimeError("Unlnown message '%s' (%s)" % (typ, arg))
 
     async def wait_queue(self):
+        """
+        Registrations may be synchronous (they can be used as function decorators).
+
+        To make sure that your code proceeds only after all previous registrations
+        have been acknowledged by the server, call this coroutine.
+
+        TODO: use this to catch registration errors.
+        """
         ev = trio.Event()
-        self._queue_event("wait",ev)
+        self._queue.put_nowait(("wait", ev))
         await ev.wait()
 
     ## client
 
     async def rpc(self, *args, **kwargs):
+        """A remote procedure call returns one reply."""
         return await self.conn.rpc(*args, **kwargs)
 
-    async def poll_one(self, *args, **kwargs):
-        return await self.conn.poll_one(*args, **kwargs)
+    async def poll_first(self, *args, **kwargs):
+        """An alert call returns the first reply."""
+        async with aclosing(self.conn.poll(*args, **kwargs)) as p:
+            async for r in p:
+                return r
 
     async def alert(self, *args, **kwargs):
+        """An alert call ("pubsub") sends one request to multiple recipients. No reply."""
         await self.conn.alert(*args, **kwargs)
 
     async def poll(self, *args, **kwargs):
+        """A poll call expects replies either from more than one client.
+        """
         # yield from self.conn.poll(*args, **kwargs)  # py3.7
         async with aclosing(self.conn.poll(*args, **kwargs)) as p:
-            for r in p:
+            async for r in p:
+                yield r
+
+    async def stream(self, *args, **kwargs):
+        """A stream call expects multiple replies from a single client.
+        """
+        # yield from self.conn.poll(*args, **kwargs)  # py3.7
+        async with aclosing(self.conn.stream(*args, **kwargs)) as p:
+            async for r in p:
                 yield r
 
     ## server
 
     async def _do_regs(self):
-        for ep in self.rpc_endpoints.values():
-            await self._do_register_rpc(ep)
-        for ep in self.alert_endpoints.values():
-            await self._do_register_alert(ep)
+        for ep in self._endpoints.values():
+            if ep.tag in self._reg_endpoints:
+                continue
+            await self._do_register(ep)
 
-    async def _do_register_rpc(self, ep):
-        if ep.name not in self._did_reg_rpc:
-            try:
-                self._did_reg_rpc.add(ep.name)
-                await self.conn.register_rpc(ep)
-            except BaseException:
-                self._did_reg_rpc.remove(ep.name)
-                raise
-
-    async def _do_register_alert(self, ep):
-        if ep.name not in self._did_reg_alert:
-            try:
-                self._did_reg_alert.add(ep.name)
-                await self.conn.register_alert(ep)
-            except BaseException:
-                self._did_reg_alert.remove(ep.name)
-                raise
-
-    async def _do_unregister_rpc(self, ep):
+    async def _do_register(self, ep):
         try:
-            self._did_reg_rpc.remove(ep.name)
-        except KeyError:
-            pass
-        else:
-            await self.conn.unregister_rpc(ep)
+            self._reg_endpoints.add(ep.tag)
+            if self.conn is not None:
+                await self.conn.register(ep)
+        except BaseException:
+            self._reg_endpoints.remove(ep.tag)
+            raise
 
-    async def _do_unregister_alert(self, ep):
-        try:
-            self._did_reg_alert.remove(ep.name)
-        except KeyError:
-            pass
-        else:
-            await self.conn.unregister_alert(ep)
-
-    def register_rpc(self, *a, _alert=False, call_conv=CC_MSG, durable=None, ttl=None):
+    async def register(self, *a, **kw):
         """
-        Code to register a function with this broker.
+        Async code to register a function with this broker.
         """
-        fn = RPCservice(*a, call_conv=call_conv, durable=durable, ttl=ttl)
-        if fn.is_alert is None:
-            fn.is_alert = _alert
-        elif fn.is_alert != _alert:
-            raise RuntimeError("You can' change an RPC to an alert (or vice versa)")
+        ep = RPCservice(*a, **kw)
+        if ep.tag in self._endpoints:
+            raise RuntimeError("aleady registered")
+        self._endpoints[ep.tag] = ep
+        await self._do_register(ep)
+        return ep
 
-        if _alert:
-            epl = self.alert_endpoints
-            q = 'reg_alert'
-        else:
-            epl = self.rpc_endpoints
-            q = 'reg_rpc'
-        if fn.name in epl:
-            raise RuntimeError("'%s' is already registered" % (fn.name,))
-        epl[fn.name] = fn
-        self._queue_event(q,fn)
-
-    def on_rpc(self, *a, **kw):
+    def on_rpc(self, fn=None, name=None, **kw):
         """\
-            Decorator to register an RPC listener.
+            Decorator/sync function to register an RPC listener.
 
             Example::
                 
@@ -288,56 +285,40 @@ class Broker:
                     return {'result':'I got a message!'}
 
             The function may be sync, async, or a Trio task.
+
+            See :class:`qbroker.rpc.RPCservice` for possible keyword arguments.
             """
 
-        if len(a) > 1:
-            raise RuntimeError("too many arguments")
-        if len(a) == 1 and not isinstance(a[0], str):
-            # called without parentheses
-            self.register_rpc(a[0], **kw)
-            return a[0]
+        def _register(*a, _direct=False, **kw):
+            ep = RPCservice(*a, **kw)
+            if ep.tag in self._endpoints:
+                raise RuntimeError("aleady registered")
+            self._endpoints[ep.tag] = ep
+            self._queue.put_nowait(("reg", ep))
+            return ep if _direct else ep.fn
 
-        if len(a):
-            if not isinstance(a[0], str):
-                raise RuntimeError("Call with a function name!")
-            return partial(self.register_rpc,name=a[0],**kw)
+        if name is not None or callable(fn):
+            # either used without parentheses or not as a decorator
+            return _register(fn, name=name, _direct=True, **kw)
+
+        if fn is not None:
+            return partial(_register,name=fn,**kw)
+        elif kw:
+            return partial(_register,**kw)
         else:
-            return partial(self.register_rpc,**kw)
+            return _register
 
-    def register_alert(self, *a, **kw):
-        """Register an alert listener.
-           See meth:`rpc` for calling conventions."""
-        return self.register_rpc(*a, _alert=True, **kw)
-
-    def on_alert(self, *a, **kw):
-        """Decorator to register an alert listener.
-           See register_rpc for calling conventions."""
-        return self.rpc(*a, _alert=True, **kw)
-
-    def unregister_rpc(self, fn, _alert=False):
-        if not isinstance(fn,str):
-            if hasattr(fn,'name'):
-                fn = fn.name
-            else:
-                fn = fn.__module__+'.'+fn.__name__
-        if _alert:
-            epl = self.alert_endpoints
+    async def unregister(self, ep):
+        if isinstance(ep,str):
+            ep = self._endpoints[ep]
+        try:
+            del self._endpoints[ep.tag]
+        except KeyError:
+            # multiple removals are benign
+            pass
         else:
-            epl = self.rpc_endpoints
-
-        fn = epl.pop(fn)
-        if fn.is_alert != _alert:
-            raise RuntimeError("register/unregister alert: %s/%s" % (fn.is_alert,_alert))
-        if _alert:
-            self._queue_event("unreg_rpc",fn)
-        else:
-            self._queue_event("unreg_alert",fn)
-
-    def unregister_alert(self, fn):
-        return self.unregister_rpc(fn, _alert=True)
-
-    def _queue_event(self, name, arg):
-        self._queue.put_nowait((name, arg))
+            if self.conn is not None:
+                await self.conn.unregister(ep)
 
     def _alert_ping(self,msg):
         if isinstance(msg,Mapping):
@@ -356,10 +337,7 @@ class Broker:
             app=self.app,
             args=self.args,
             uuid=self.uuid,
-            rpc=list(self.rpc_endpoints.keys()),
-            alert=list(self.alert_endpoints.keys()),
-            rpc_calls=list(self.rpc_calls.keys()),
-            alert_calls=list(self.alert_calls.keys()),
+            endpoints=list(self._endpoints.keys()),
             )
         
     async def _reply_debug(self,msg):

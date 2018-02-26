@@ -43,22 +43,22 @@ async def test_rpc_basic():
         async with unit(2) as unit2:
             call_me = Mock(side_effect=lambda x: "foo "+x)
             call_msg = Mock(side_effect=lambda m: "foo "+m.data['x'])
-            r1 = await unit1.register_rpc("my.call",call_me, call_conv=CC_DATA)
-            await unit1.register_rpc("my.call.x",call_me, call_conv=CC_DICT)
-            await unit1.register_rpc("my.call.m",call_msg, call_conv=CC_MSG)
+            r1 = await unit1.register(call_me,"my.call", call_conv=CC_DATA)
+            await unit1.register(call_me,"my.call.x", call_conv=CC_DICT)
+            await unit1.register(call_msg,"my.call.m", call_conv=CC_MSG)
             res = await unit2.rpc("my.call", "one")
             assert res == "foo one"
             res = await unit1.rpc("my.call", "two")
             assert res == "foo two"
             with pytest.raises(TypeError):
-                res = await unit1.rpc("my.call", x="two")
-            res = await unit1.rpc("my.call.x", x="three")
+                res = await unit1.rpc("my.call", dict(x="two"))
+            res = await unit1.rpc("my.call.x", dict(x="three"))
             assert res == "foo three"
             with pytest.raises(TypeError):
-                res = await unit1.rpc("my.call", y="duh")
-            res = await unit1.rpc("my.call.m", x="four")
+                res = await unit1.rpc("my.call", dict(y="duh"))
+            res = await unit1.rpc("my.call.m", dict(x="four"))
             assert res == "foo four"
-            await unit1.unregister_rpc(r1)
+            await unit1.unregister(r1)
             with trio.move_on_after(TIMEOUT*5/2):
                 try:
                     await unit1.rpc("my.call", "No!")
@@ -69,27 +69,27 @@ async def test_rpc_basic():
 async def test_rpc_decorated():
     async with unit(1) as unit1:
         async with unit(2) as unit2:
-            @unit1.on_rpc("my.call", call_conv=CC_DATA)
             @unit1.on_rpc("my.call.x", call_conv=CC_DICT)
             def call_me(x):
                 return "foo "+x
+            r1 = unit1.on_rpc(call_me,"my.call", call_conv=CC_DATA)
             @unit1.on_rpc("my.call.m", call_conv=CC_MSG)
             def call_msg(m):
                 return "foo "+m.data['x']
-            await unit1._wait_queue()
+            await unit1.wait_queue()
             res = await unit2.rpc("my.call", "one")
             assert res == "foo one"
             res = await unit1.rpc("my.call", "two")
             assert res == "foo two"
             with pytest.raises(TypeError):
-                res = await unit1.rpc("my.call", x="two")
-            res = await unit1.rpc("my.call.x", x="three")
+                res = await unit1.rpc("my.call", dict(x="two"))
+            res = await unit1.rpc("my.call.x", dict(x="three"))
             assert res == "foo three"
             with pytest.raises(TypeError):
-                res = await unit1.rpc("my.call", y="duh")
-            res = await unit1.rpc("my.call.m", x="four")
+                res = await unit1.rpc("my.call", dict(y="duh"))
+            res = await unit1.rpc("my.call.m", dict(x="four"))
             assert res == "foo four"
-            await unit1.unregister_rpc(r1)
+            await unit1.unregister(r1)
             with trio.move_on_after(TIMEOUT*5/2):
                 try:
                     await unit1.rpc("my.call", "No!")
@@ -106,7 +106,7 @@ async def test_rpc_error():
         async with unit(2) as unit2:
             def call_me():
                 raise _TestError("foo")
-            r1 = await unit1.register_rpc("err.call",call_me, call_conv=CC_DICT)
+            r1 = await unit1.register(call_me,"err.call", call_conv=CC_DICT)
             try:
                 res = await unit2.rpc("err.call")
             except _TestError as exc:
@@ -120,10 +120,12 @@ async def test_rpc_error():
 async def test_rpc_direct():
     async with unit(1) as unit1:
         async with unit(2) as unit2:
-            call_me = Mock(side_effect=lambda x: "foo "+str(x))
-            r1 = await unit1.register_rpc("my.call",call_me, call_conv=CC_DATA)
+            #call_me = Mock(side_effect=lambda x: "foo "+str(x))
+            def call_me(x):
+                return "foo "+x
+            r1 = await unit1.register(call_me,"my.call", call_conv=CC_DATA)
             res = await unit2.rpc("my.call", "one",uuid=unit1.uuid)
-            assert res == "foo one"
+            assert res == "foo one", res
             with trio.move_on_after(TIMEOUT*5/2):
                 try:
                     t = await unit2.rpc("my.call", "No!", uuid=unit2.uuid)
@@ -142,7 +144,7 @@ async def test_rpc_unencoded():
                 nonlocal ncalls 
                 ncalls += 1
                 return object()
-            await unit1.register_rpc("my.call",call_me, call_conv=CC_DICT)
+            await unit1.register(call_me,"my.call", call_conv=CC_DICT)
             with trio.move_on_after(TIMEOUT):
                 try:
                     r = await unit2.rpc("my.call")
@@ -163,46 +165,46 @@ def something_named(foo):
 async def test_rpc_named():
     async with unit(1) as unit1:
         async with unit(2) as unit2:
-            await unit1.register_rpc(something_named, call_conv=CC_DATA)
+            await unit1.register(something_named, call_conv=CC_DATA)
             res = await unit2.rpc("something.named", "one")
             assert res == "bar one"
             res = await unit1.rpc("something.named", "two")
             assert res == "bar two"
 
-@pytest.mark.trio
-async def test_rpc_explicit():
-    async with unit(1) as unit1:
-        async with unit(2) as unit2:
-            from qbroker.rpc import RPCservice
-            s = RPCservice(something_named,call_conv=CC_DATA)
-            await unit1.register_rpc(s)
-            # something_named.__module__ depends on what the test was called with
-            res = await unit2.rpc(something_named.__module__+".something_named", "one")
-            assert res == "bar one"
-            res = await unit1.rpc(something_named.__module__+".something_named", "two")
-            assert res == "bar two"
+#@pytest.mark.trio
+#async def test_rpc_explicit():
+#    async with unit(1) as unit1:
+#        async with unit(2) as unit2:
+#            from qbroker.rpc import RPCservice
+#            s = RPCservice(something_named,call_conv=CC_DATA)
+#            await unit1.register(s)
+#            # something_named.__module__ depends on what the test was called with
+#            res = await unit2.rpc(something_named.__module__+".something_named", "one")
+#            assert res == "bar one"
+#            res = await unit1.rpc(something_named.__module__+".something_named", "two")
+#            assert res == "bar two"
 
 @pytest.mark.trio
 async def test_alert_callback():
     async with unit(1) as unit1:
         async with unit(2) as unit2:
             alert_me = Mock(side_effect=lambda y: "bar "+y)
-            r1 = await unit1.register_alert("my.alert",alert_me, call_conv=CC_DICT)
-            await unit2.register_alert("my.alert",alert_me, call_conv=CC_DICT)
+            r1 = await unit1.register(alert_me,"my.alert", call_conv=CC_DICT, multiple=True)
+            await unit2.register(alert_me,"my.alert", call_conv=CC_DICT, multiple=True)
             n = 0
-            async for x in unit2.alert("my.alert",y="dud",callback=cb,call_conv=CC_DATA, timeout=TIMEOUT):
+            async for x in unit2.poll("my.alert",{'y':"dud1"},result_conv=CC_DATA, max_delay=TIMEOUT):
                 n += 1
-                assert x == "bar dud", x
+                assert x == "bar dud1", x
             assert n == 2
             n = 0
-            async for x in unit1.alert("my.alert",{'y':"dud"},callback=cb,call_conv=CC_DATA, timeout=TIMEOUT):
+            async for x in unit1.poll("my.alert",{'y':"dud2"},result_conv=CC_DATA, max_delay=TIMEOUT):
                 n += 1
-                assert x == "bar dud", x
+                assert x == "bar dud2", x
             assert n == 2
-            await unit1.unregister_alert(r1)
-            async for x in unit1.alert("my.alert",{'y':"dud"},callback=cb,call_conv=CC_DATA, timeout=TIMEOUT):
+            await unit1.unregister(r1)
+            async for x in unit1.poll("my.alert",{'y':"dud3"},result_conv=CC_DATA, max_delay=TIMEOUT):
                 n += 1
-                assert x == "bar dud", x
+                assert x == "bar dud3", x
             assert n == 3
 
 @pytest.mark.trio
@@ -210,11 +212,12 @@ async def test_alert_uncodeable():
     async with unit(1) as unit1:
         async with unit(2) as unit2:
             alert_me = Mock(side_effect=lambda : object())
-            await unit1.register_alert("my.alert",alert_me, call_conv=CC_DICT)
-            def cb(msg):
-                assert False,"Called?"
-            async for x in await unit2.alert("my.alert",callback=cb, timeout=TIMEOUT):
-                assert False, x
+            await unit1.register(alert_me,"my.alert", call_conv=CC_DICT, multiple=True)
+            try:
+                async for x in unit2.poll("my.alert", max_delay=TIMEOUT):
+                    assert False, x
+            except DeadLettered as exc:
+                pass
 
 @pytest.mark.trio
 async def test_alert_binary():
@@ -224,7 +227,7 @@ async def test_alert_binary():
             def alert_me(msg):
                 assert msg == "Hellö".encode("utf-8")
                 done[0] = True
-            await unit1.register_alert("my.alert",alert_me, call_conv=CC_DATA)
+            await unit1.register(alert_me,"my.alert", call_conv=CC_DATA, multiple=True)
             await unit2.alert("my.alert", "Hellö", codec="application/binary")
             await trio.sleep(TIMEOUT/2)
             assert done[0]
@@ -237,10 +240,10 @@ async def test_alert_oneway():
             alert_me2 = Mock()
             alert_me3 = Mock()
             alert_me4 = Mock()
-            await unit1.register_alert("my.alert1",alert_me1, call_conv=CC_DICT)
-            await unit1.register_alert("my.alert2",alert_me2, call_conv=CC_DATA)
-            await unit1.register_alert("my.alert3",alert_me3) # default is CC_MSG
-            await unit1.register_alert("my.#",alert_me4) # default is CC_MSG
+            await unit1.register(alert_me1,"my.alert1", call_conv=CC_DICT, multiple=True)
+            await unit1.register(alert_me2,"my.alert2", call_conv=CC_DATA, multiple=True)
+            await unit1.register(alert_me3,"my.alert3", multiple=True) # default is CC_MSG
+            await unit1.register(alert_me4,"my.#", multiple=True) # default is CC_MSG
             await unit2.alert("my.alert1",{'y':"dud"})
             await unit2.alert("my.alert2",{'y':"dud"})
             await unit2.alert("my.alert3",{'y':"dud"})
@@ -257,18 +260,18 @@ async def test_alert_no_data():
         async with unit(2) as unit2:
             alert_me1 = Mock(side_effect=lambda x: "")
             alert_me2 = Mock(side_effect=lambda : {})
-            await unit1.register_alert("my.alert1",alert_me1, call_conv=CC_DATA)
-            await unit2.register_alert("my.alert2",alert_me2, call_conv=CC_DICT)
+            await unit1.register(alert_me1,"my.alert1", call_conv=CC_DATA, multiple=True)
+            await unit2.register(alert_me2,"my.alert2", call_conv=CC_DICT, multiple=True)
             async def recv2(*a,**k):
                 return {}
             n = 0
-            async for d in await unit2.alert("my.alert1", "", callback=recv1, call_conv=CC_DATA, timeout=TIMEOUT):
+            async for d in unit2.poll("my.alert1", "", result_conv=CC_DATA, max_delay=TIMEOUT):
                 n += 1
                 assert d == ""
             alert_me1.assert_called_with("")
             assert n == 1
             n = 0
-            async for d in await unit2.alert("my.alert2", callback=recv2, call_conv=CC_DICT, timeout=TIMEOUT):
+            async for d in unit2.poll("my.alert2", result_conv=CC_DATA, max_delay=TIMEOUT):
                 n += 1
                 await trio.sleep(0.01)
                 assert not d
@@ -284,21 +287,21 @@ async def test_alert_durable():
             def alert_me():
                 nonlocal ncalls
                 ncalls += 1
-            r1 = await unit1.register_alert("my.dur.alert",alert_me, call_conv=CC_DICT, durable=True, ttl=1)
-            r2 = await unit2.register_alert("my.dur.alert",alert_me, call_conv=CC_DICT, durable=True, ttl=1)
+            r1 = await unit1.register(alert_me,"my.dur.alert", call_conv=CC_DICT, durable=True, ttl=1, multiple=True)
+            r2 = await unit2.register(alert_me,"my.dur.alert", call_conv=CC_DICT, durable=True, ttl=1, multiple=True)
 
             await unit2.alert("my.dur.alert")
             await trio.sleep(TIMEOUT*3/2)
             assert ncalls == 1
 
             # Now check if this thing really is durable
-            await unit1.unregister_alert(r1)
-            await unit2.unregister_alert(r2)
+            await unit1.unregister(r1)
+            await unit2.unregister(r2)
             await trio.sleep(TIMEOUT/2)
             await unit2.alert("my.dur.alert")
             await trio.sleep(TIMEOUT*3/2)
             assert ncalls == 1
-            r1 = await unit1.register_alert("my.dur.alert",alert_me, call_conv=CC_DICT, durable=True, ttl=1)
+            r1 = await unit1.register(alert_me,"my.dur.alert", call_conv=CC_DICT, durable=True, ttl=1, multiple=True)
             await trio.sleep(TIMEOUT*3/2)
             assert ncalls == 2
 
@@ -310,20 +313,20 @@ async def test_alert_nondurable():
             def alert_me():
                 nonlocal ncalls
                 ncalls += 1
-            r1 = await unit1.register_alert("my.alert",alert_me, call_conv=CC_DICT)
-            r2 = await unit2.register_alert("my.alert",alert_me, call_conv=CC_DICT)
+            r1 = await unit1.register(alert_me,"my.alert", call_conv=CC_DICT, multiple=True)
+            r2 = await unit2.register(alert_me,"my.alert", call_conv=CC_DICT, multiple=True)
 
             await unit2.alert("my.alert")
             await trio.sleep(TIMEOUT*3/2)
             assert ncalls == 2
 
             # now verify that messages do get lost
-            await unit1.unregister_alert(r1)
-            await unit2.unregister_alert(r2)
+            await unit1.unregister(r1)
+            await unit2.unregister(r2)
             await unit2.alert("my.alert")
             await trio.sleep(TIMEOUT*3/2)
             assert ncalls == 2
-            r1 = await unit1.register_alert("my.alert",alert_me, call_conv=CC_DICT)
+            r1 = await unit1.register(alert_me,"my.alert", call_conv=CC_DICT, multiple=True)
             await trio.sleep(TIMEOUT*3/2)
             assert ncalls == 2
 
@@ -343,9 +346,9 @@ async def test_alert_stop():
                 nhit += 1
                 await trio.sleep(TIMEOUT)
                 return False
-            await unit1.register_alert("my.sleep",sleep1, call_conv=CC_DICT)
-            await unit2.register_alert("my.sleep",sleep2, call_conv=CC_DICT)
-            async for msg in await unit2.alert("my.sleep", callback=recv, timeout=TIMEOUT*5/2):
+            await unit1.register(sleep1,"my.sleep", call_conv=CC_DICT, multiple=True)
+            await unit2.register(sleep2,"my.sleep", call_conv=CC_DICT, multiple=True)
+            async for msg in unit2.poll("my.sleep", max_delay=TIMEOUT*5/2):
                 ncall += 1
                 break
             assert nhit == 2, nhit
@@ -356,7 +359,7 @@ async def test_reg():
     async with unit(1) as unit1:
         async with unit(2) as unit2:
             rx = 0
-            async for d in await unit2.alert("qbroker.ping", callback=recv, timeout=TIMEOUT, call_conv=CC_DICT):
+            async for d in unit2.poll("qbroker.ping", max_delay=TIMEOUT, result_conv=CC_DATA):
                 if d['uuid'] == unit1.uuid:
                     assert d['app'] == unit1.app
                     rx += 1
@@ -364,12 +367,11 @@ async def test_reg():
                     assert d['app'] == unit2.app
                     rx += 1
                 # There may be others.
-            assert res >= 2
             assert rx == 2
 
             res = await unit2.rpc("qbroker.ping", uuid=unit1.uuid)
             assert res['app'] == unit1.app
-            assert "qbroker.ping" in res['rpc'], res['rpc']
+            assert "rpc.qbroker.ping" in res['endpoints'], res['endpoints']
 
 @pytest.mark.trio
 async def test_alert_error():
@@ -378,37 +380,30 @@ async def test_alert_error():
             def err(x):
                 raise RuntimeError("dad")
             error_me1 = Mock(side_effect=err)
-            await unit1.register_alert("my.error1",error_me1, call_conv=CC_DATA)
-            called = false
-            async for d in unit2.alert("my.error1", min_replies=1,max_replies=2,timeout=TIMEOUT):
+            await unit1.register(error_me1,"my.error1", call_conv=CC_DATA, multiple=True)
+            called = False
+            async for d in unit2.poll("my.error1", min_replies=1,max_replies=2,max_delay=TIMEOUT, result_conv=CC_MSG):
                 assert not called
                 assert d.error.cls == "RuntimeError"
                 assert d.error.message == "dad"
-                called = true
+                called = True
             error_me1.assert_called_with("")
 
-            async for d in unit2.alert("my.error1", call_conv=CC_DATA, min_replies=1,max_replies=2,timeout=TIMEOUT):
-                assert False
+            with pytest.raises(RuntimeError):
+                async for d in unit2.poll("my.error1", result_conv=CC_DATA, min_replies=1,max_replies=2,max_delay=TIMEOUT):
+                    assert False
 
             with pytest.raises(RuntimeError):
-                await unit2.poll_one("my.error1")
-
-@pytest.mark.trio
-async def test_reg_error():
-    async with unit(1) as unit1:
-        with pytest.raises(AssertionError):
-            await unit1.register_rpc("my.call",Mock())
-        with pytest.raises(AssertionError):
-            await unit1.register_alert("my.alert",Mock())
+                await unit2.poll_first("my.error1")
 
 @pytest.mark.trio
 async def test_rpc_bad_params():
     async with unit(1) as unit1:
         async with unit(2) as unit2:
             call_me = Mock(side_effect=lambda x: "foo "+x)
-            await unit1.register_rpc("my.call",call_me, call_conv=CC_DATA)
+            await unit1.register(call_me,"my.call", call_conv=CC_DATA)
             try:
-                res = await unit2.rpc("my.call", x="two")
+                res = await unit2.rpc("my.call", dict(x="two"))
             except TypeError as exc:
                 assert type(exc) == TypeError
                 assert "convert" in str(exc) or "must be " in str(exc)
@@ -420,7 +415,7 @@ async def test_rpc_unroutable():
     async with unit(1) as unit1:
         async with unit(2) as unit2:
             call_me = Mock(side_effect=lambda x: "foo "+str(x))
-            await unit1.register_rpc("my.call",call_me, call_conv=CC_DATA)
+            await unit1.register(call_me,"my.call", call_conv=CC_DATA)
             try:
                 res = await unit2.rpc("my.non_routed.call")
             except DeadLettered as exc:
@@ -431,25 +426,40 @@ async def test_rpc_unroutable():
             assert call_me.call_count == 0
     
 @pytest.mark.trio
+async def test_enter_twice():
+    u_ = unit(1)
+    with pytest.raises(RuntimeError):
+        with u_ as us:
+            pass
+    async with u_ as u:
+        with pytest.raises(RuntimeError):
+            async with u_ as uu:
+                pass
+        with pytest.raises(RuntimeError):
+            async with u as uuu:
+                pass
+
+@pytest.mark.trio
 async def test_reg_sync():
-    u = open_broker("test.three", **cfg)
-    @u.rpc("foo.bar")
-    def foo_bar_0(msg):
-        return "quux from "+msg.data['baz']
-    @u.rpc
-    def foo_bar_1(msg):
-        return "quux from "+msg.data['baz']
-    @u.rpc(call_conv=CC_DICT)
-    def foo_bar_2(baz):
-        return "quux from "+baz
-    assert "foo.bar.2" in u.rpc_endpoints
-    async with u:
-        x = await u.rpc("foo.bar",baz="nixx")
-        y = await u.rpc("foo.bar.1",baz="nixy")
-        z = await u.rpc("foo.bar.2",baz="nixz")
+    async with unit(1) as u:
+        @u.on_rpc("foo.bar", call_conv=CC_DATA)
+        def foo_bar_0(data):
+            return "quux from "+data['baz']
+        @u.on_rpc
+        def foo_bar_1(msg):
+            return "quux from "+msg.data['baz']
+        @u.on_rpc(call_conv=CC_DICT)
+        def foo_bar_2(baz):
+            return "quux from "+baz
+        await u.wait_queue()
+        assert "rpc.foo.bar.2" in u._endpoints
+        x = await u.rpc("foo.bar",dict(baz="nixx"))
+        y = await u.rpc("foo.bar.1",dict(baz="nixy"))
+        z = await u.rpc("foo.bar.2",dict(baz="nixz"))
         assert x == "quux from nixx"
         assert y == "quux from nixy"
         assert z == "quux from nixz"
-    await u.unregister_rpc("foo.bar.2")
-    assert "foo.bar.2" not in u.rpc_endpoints
+        assert "rpc.foo.bar.2" in u._endpoints
+        await u.unregister("rpc.foo.bar.2")
+        assert "rpc.foo.bar.2" not in u._endpoints
 

@@ -19,49 +19,137 @@ from . import CC_MSG,CC_DICT,CC_DATA
 from .util import attrdict, import_string, uuidstr
 
 async def coro_wrapper(proc, *a, **kw):
-	"""\
-		This code is responsible for turning whatever callable you pass in
-		into a "yield from"-style coroutine.
-		"""
-	proc = proc(*a, **kw)
-	if inspect.isawaitable(proc):
-		proc = await proc
-	return proc
+    """\
+        This code is responsible for turning whatever callable you pass in
+        into a "yield from"-style coroutine.
+        """
+    proc = proc(*a, **kw)
+    if inspect.isawaitable(proc):
+        proc = await proc
+    return proc
 
 class RPCservice(object):
-	"""\
-		This object wraps one specific RPC service.
-		"""
-	queue = None
-	is_alert = None
+    """\
+        This object wraps one specific RPC service.
 
-	def __new__(cls, fn, name=None, **kw):
-		if isinstance(fn, RPCservice):
-			return fn
-		return object.__new__(cls)
+        Arguments:
+            fn:
+                The function to call when a packet arrives.
+                The function may be synchronous or asynchronous.
 
-	def __init__(self, fn, name=None, call_conv=CC_MSG, durable=None, ttl=None):
-		if isinstance(fn, RPCservice):
-			return
-		if name is None:
-			name = fn.__module__+'.'+fn.__name__
-		self.fn = fn
-		self.name = name
-		self.call_conv = call_conv
-		self.durable = durable
-		self.uuid = uuidstr()
-		self.ttl = ttl
-	
-	async def run(self, *a,**k):
-		res = await coro_wrapper(self.fn, *a, **k)
-		return res
+            name:
+                The name to register the function as. If not set,
+                auto-generate from the function's module and name,
+                replacing underlines by dots.
 
-	def __str__(self):
-		if self.is_alert:
-			n = "ALERT"
-		elif self.is_alert is not None:
-			n = "RPC"
-		else:
-			n = '?'
-		return "‹%s %s %s %s›" % (n,self.name,self.call_conv,self.fn)
-		
+            exchange:
+                The exchange to attach to. Default: 'rpc'
+
+            call_conv:
+                Calling convention for the function. Possible values:
+                    CC_MSG:
+                        The message instance itself is passed.
+
+                    CC_DATA:
+                        The data element of the message is passed.
+
+                    CC_DICT:
+                        The message must be a dictionary. The function is
+                        called with the message's elements.
+
+                    CC_TASK:
+                        Async functions must accept a ``task_status``
+                        argument as per Trio conventions. The sole
+                        parameter is the message. The function must call
+                        either ``await msg.ack()`` or ``await
+                        msg_reject()`` as soon as possible, and may call
+                        ``await msg.reply(…)`` arbitrarily often.
+
+                        Sync functions are started in a separate thread.
+                        The sole parameter is the message. The function
+                        **must** call either ``msg.ack()`` or ``msg_reject()``
+                        as soon as possible, and *may* call ``msg.reply(…)``
+                        arbitrarily often.
+
+                Code which does not use ``CC_TASK`` is expected to
+                terminate reasonably quickly. Any result (other than
+                ``None``) is packaged as a reply and transmitted to the
+                called.
+
+            durable:
+                Name of a persistent message queue to create/use. If True,
+                the name is constant but auto-generated. If False, a
+                non-persistent queue will be created.
+
+            ttl:
+                Time after which unprocessed messages are dead-lettered.
+
+            multiple:
+                Flag whether incoming message will be sent to all
+                listeners. If False (the default), only one server will
+                read the message.
+        """
+
+    _mode = None
+
+    # for qbroker.conn.Connection.register() et al.
+    channel = None
+    queue = None
+
+    def __new__(cls, fn, name=None, **kw):
+        if isinstance(fn, RPCservice):
+            return fn
+        return object.__new__(cls)
+
+    def __init__(self, fn, name=None, exchange=None, call_conv=CC_MSG, durable=None, ttl=None, multiple=False):
+        if isinstance(fn, RPCservice):
+            return
+        if name is None:
+            # name = (fn.__module__.strip('_')+'.'+fn.__name__.strip('_')).replace('_','.').replace('..','.')
+            name = fn.__name__.strip('_').replace('_','.').replace('..','.')
+        self.fn = fn
+        self.name = name
+        self.call_conv = call_conv
+        self.durable = durable
+        self.uuid = uuidstr()
+        self.ttl = ttl
+        self.multiple = multiple
+        if exchange is None:
+            exchange = "alert" if self.multiple else "rpc"
+        self.exchange = exchange
+
+    @property
+    def tag(self):
+        return "%s.%s" % (self.type,self.name)
+
+    @property
+    def type(self):
+        if self.multiple:
+            return "alert"
+        else:
+            return "rpc"
+
+    @property
+    def is_sync(self):
+        """Return a flag whether the function is called synchronously.
+        True: yes
+        False: no, call async.
+        None: no, use a task to call it.
+        """
+        if self._mode is None:
+            self._mode = inspect.isasyncfunction(self.fn)
+        return self._mode
+        
+    async def run(self, *a,**k):
+        res = await coro_wrapper(self.fn, *a, **k)
+        return res
+
+    def __str__(self):
+        if self.is_alert:
+            n = "ALERT"
+        elif self.is_alert is not None:
+            n = "RPC"
+        else:
+            n = '?'
+        return "‹%s %s %s %s›" % (n,self.name,self.call_conv,self.fn)
+

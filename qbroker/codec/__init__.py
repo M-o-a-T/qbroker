@@ -36,31 +36,31 @@ codecs = {}
 default_codec = None
 DEFAULT="DEFAULT"
 def get_codec(name):
-	global default_codec
+    global default_codec
 
-	if not codecs:
-		def _check(m):
-			global default_codec
-			try:
-				if isinstance(m,str):
-					m = import_module(m)
-			except ImportError as ex:
-				raise ImportError(m) from ex # pragma: no cover
-				# not going to ship a broken file for testing this
-			else:
-				try:
-					codecs[m.CODEC] = m
-				except AttributeError:
-					pass
-				else:
-					if getattr(m,'DEFAULT',False):
-						default_codec = m
+    if not codecs:
+        def _check(m):
+            global default_codec
+            try:
+                if isinstance(m,str):
+                    m = import_module(m)
+            except ImportError as ex:
+                raise ImportError(m) from ex # pragma: no cover
+                # not going to ship a broken file for testing this
+            else:
+                try:
+                    codecs[m.CODEC] = m
+                except AttributeError:
+                    pass
+                else:
+                    if getattr(m,'DEFAULT',False):
+                        default_codec = m
 
-		for a,b,c in pkgutil.walk_packages((os.path.dirname(__file__),), __package__+'.'):
-			_check(b)
+        for a,b,c in pkgutil.walk_packages((os.path.dirname(__file__),), __package__+'.'):
+            _check(b)
 
-	if name == DEFAULT:
-		return default_codec
-		
-	return codecs[name]
+    if name == DEFAULT:
+        return default_codec
+        
+    return codecs[name]
 

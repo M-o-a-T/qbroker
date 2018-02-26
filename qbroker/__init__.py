@@ -23,16 +23,17 @@ from async_generator import asynccontextmanager
 
 @asynccontextmanager
 async def open_broker(*args, **kwargs):
-	"""\
-		Context manager to create a restarting AMQP connection.
-		"""
-	from .broker import Broker
-	async with trio.open_nursery() as nursery:
-		async with Broker(*args, nursery=nursery, **kwargs) as b:
-			yield b
+    """\
+        Context manager to create a restarting AMQP connection.
+        """
+    from .broker import Broker
+    async with trio.open_nursery() as nursery:
+        async with Broker(*args, nursery=nursery, **kwargs) as b:
+            yield b
 
 # Calling conventions for RPC-registered procedures
 CC_MSG="_msg" # pass the whole message (default)
 CC_DATA="_data" # pass the data element
 CC_DICT="_dict" # assume data is a dict and apply it
+CC_TASK="_task" # pass the message to a separate task
 
