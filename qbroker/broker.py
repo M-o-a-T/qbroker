@@ -224,11 +224,11 @@ class Broker:
         """
         return await self.conn.rpc(*args, **kwargs)
 
-    async def rpc_multi(self, *args, **kwargs):
+    async def stream(self, *args, **kwargs):
         """A remote procedure call that returns more than one reply.
         """
         # yield from self.conn.poll(*args, **kwargs)  # py3.7
-        async with aclosing(self.conn.poll(*args, _MsgClass=RequestMsg, **kwargs)) as p:
+        async with aclosing(self.conn.stream(*args, **kwargs)) as p:
             async for r in p:
                 yield r
 
@@ -251,14 +251,6 @@ class Broker:
         async with aclosing(self.conn.poll(*args, **kwargs)) as p:
             async for r in p:
                 return r
-
-    async def stream(self, *args, **kwargs):
-        """A stream call expects multiple replies from a single client.
-        """
-        # yield from self.conn.poll(*args, **kwargs)  # py3.7
-        async with aclosing(self.conn.stream(*args, **kwargs)) as p:
-            async for r in p:
-                yield r
 
     ## server
 

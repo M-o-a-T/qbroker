@@ -22,7 +22,7 @@ from contextlib import contextmanager, suppress
 from async_generator import asynccontextmanager, aclosing
 
 from . import CC_DICT,CC_DATA,CC_MSG
-from .msg import _RequestMsg,PollMsg,RequestMsg,BaseMsg,AlertMsg
+from .msg import _RequestMsg,PollMsg,RequestMsg,BaseMsg,AlertMsg,StreamMsg
 from .codec import get_codec, DEFAULT
 from .util import import_string
 
@@ -343,7 +343,7 @@ class Connection(object):
         """
         Context manager to cleanly register a receiver for a message ID
         """
-        if msg.message_id in self.replies:
+        if msg.message_id in self.replies:  # pragma: no cover
             raise RuntimeError("Message ID is already known (%s)" % msg.message_id)
         try:
             self.replies[msg.message_id] = msg
@@ -367,7 +367,7 @@ class Connection(object):
             res.raise_if_error()
             return res.data
         elif result_conv == CC_MSG:
-            return msg
+            return res
         else:
             raise RuntimeError("I do not know how to return %s (%s?)" % (msg, result_conv))
 
@@ -378,7 +378,7 @@ class Connection(object):
         """
         msg = self._pack_rpc(*args, MsgClass=AlertMsg, **kwargs)
 
-        if msg.message_id in self.replies:
+        if msg.message_id in self.replies:  # pragma: no cover
             raise RuntimeError("Message ID is already known (%s)" % msg.message_id)
 
         await self._send(msg)
@@ -407,8 +407,8 @@ class Connection(object):
             raise trio.TooSlowError
 
     async def stream(self, *args, **kwargs):
-        with aclosing(self.poll(*args, _MsgClass=StreamMsg, **kwargs)) as s:
-            for x in s:
+        async with aclosing(self.poll(*args, _MsgClass=StreamMsg, **kwargs)) as s:
+            async for x in s:
                 yield x
 
     async def _send(self, msg):
@@ -436,10 +436,10 @@ class Connection(object):
 
         if ep.tag in self.rpcs:
             raise RuntimeError("multiple registration of "+ep.tag)
-        self.rpcs[ep.tag] = ep
 
+        self.rpcs[ep.tag] = ep
+        chan = None
         try:
-            chan = None
             ep._c_channel = chan = await self.amqp.channel()
             d = {}
             ttl = ep.ttl or cfg.ttl[ep.type]
@@ -470,18 +470,19 @@ class Connection(object):
             ep._c_channel = chan
             ep._c_queue = q
 
-        except BaseException:
+        except BaseException:  # pragma: no cover
             del self.rpcs[ep.tag]
             if chan is not None:
                 del ep._c_channel
-                await chan.close()
+                with trio.open_cancel_scope(shield=True, deadline=trio.current_time()+1):
+                    await chan.close()
             raise
 
     async def unregister(self,ep):
         cfg = self.cfg
 
         if isinstance(ep,str):
-            ep = self.rpcs.remove(ep)
+            ep = self.rpcs.pop(ep)  # pragma: no cover
         else:
             del self.rpcs[ep.tag]
         chan = ep._c_channel
@@ -501,16 +502,14 @@ class Connection(object):
             logger.debug("Disconnecting %s",self)
             try:
                 await a.aclose()
-            except BaseException:
+            except BaseException:  # pragma: no cover
                 a.close()
                 raise
             logger.debug("Disconnected %s",self)
 
     def close(self):
-        self.amqp = None
-        a,self.amqp_transport = self.amqp_transport,None
+        a,self.amqp = self.amqp,None
         if a is not None:
             logger.debug("Killing %s",self)
             a.close()
-            logger.debug("Killed %s",self)
 

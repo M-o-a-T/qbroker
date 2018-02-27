@@ -16,7 +16,7 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 import pytest
 import os
 import trio
-from qbroker import CC_DICT,CC_DATA,CC_MSG, open_broker
+from qbroker import CC_DICT,CC_DATA,CC_MSG,CC_TASK, open_broker
 from .testsupport import TIMEOUT, cfg, unit
 from qbroker.msg import MsgError,AlertMsg
 from qbroker.conn import DeadLettered
@@ -43,13 +43,19 @@ async def test_rpc_basic():
         async with unit(2) as unit2:
             call_me = Mock(side_effect=lambda x: "foo "+x)
             call_msg = Mock(side_effect=lambda m: "foo "+m.data['x'])
+            with pytest.raises(RuntimeError):
+                await unit1.register(call_me,"my.#.call")
             r1 = await unit1.register(call_me,"my.call", call_conv=CC_DATA)
             await unit1.register(call_me,"my.call.x", call_conv=CC_DICT)
             await unit1.register(call_msg,"my.call.m", call_conv=CC_MSG)
-            res = await unit2.rpc("my.call", "one")
-            assert res == "foo one"
-            res = await unit1.rpc("my.call", "two")
+            res = await unit2.rpc("my.call", "one", result_conv=CC_MSG)
+            assert res.data == "foo one"
+            res = await unit1.rpc("my.call", "two", result_conv=CC_DATA)
             assert res == "foo two"
+            with pytest.raises(RuntimeError):
+                res = await unit1.rpc("my.call", "nix", result_conv=CC_DICT)
+            with pytest.raises(RuntimeError):
+                res = await unit1.rpc("my.call", "nix", result_conv=CC_TASK)
             with pytest.raises(TypeError):
                 res = await unit1.rpc("my.call", dict(x="two"), debug=True)
             res = await unit1.rpc("my.call.x", dict(x="three"))
@@ -124,6 +130,10 @@ async def test_rpc_direct():
             def call_me(x):
                 return "foo "+x
             r1 = await unit1.register(call_me,"my.call", call_conv=CC_DATA)
+
+            with pytest.raises(RuntimeError):
+                await unit2.rpc("my.call", "nix",uuid=unit1.uuid, dest="whoever")
+
             res = await unit2.rpc("my.call", "one",uuid=unit1.uuid)
             assert res == "foo one", res
             with trio.move_on_after(TIMEOUT*5/2):
@@ -294,28 +304,51 @@ async def test_alert_no_data():
             assert n == 1
 
 @pytest.mark.trio
-async def test_alert_durable():
+async def test_alert_durable1():
+
+    async def check_durable(ev, task_status=trio.TASK_STATUS_IGNORED):
+        def alert_me(x):
+            return 2*x
+
+        async with unit(1) as unit1:
+            await unit1.register(alert_me,"my.dur.alert1", call_conv=CC_DATA, durable=True, ttl=1, multiple=True)
+        task_status.started()
+        await trio.sleep(TIMEOUT/2)
+        async with unit(1) as unit1:
+            await unit1.register(alert_me,"my.dur.alert1", call_conv=CC_DATA, durable=True, ttl=1, multiple=True)
+            await ev.wait()
+
+    ev = trio.Event()
+    async with unit(2) as unit2:
+        await unit2.nursery.start(check_durable,ev)
+        with trio.fail_after(TIMEOUT):
+            res = await unit2.poll_first("my.dur.alert1", 123)
+        assert res==246
+        ev.set()
+
+@pytest.mark.trio
+async def test_alert_durable2():
     async with unit(1) as unit1:
         async with unit(2) as unit2:
             ncalls = 0
             def alert_me():
                 nonlocal ncalls
                 ncalls += 1
-            r1 = await unit1.register(alert_me,"my.dur.alert", call_conv=CC_DICT, durable=True, ttl=1, multiple=True)
-            r2 = await unit2.register(alert_me,"my.dur.alert", call_conv=CC_DICT, durable=True, ttl=1, multiple=True)
+            r1 = await unit1.register(alert_me,"my.dur.alert2", call_conv=CC_DICT, durable="my_very_durable_test", ttl=1, multiple=True)
+            r2 = await unit2.register(alert_me,"my.dur.alert2", call_conv=CC_DICT, durable="my_very_durable_test", ttl=1, multiple=True)
 
-            await unit2.alert("my.dur.alert")
+            await unit2.alert("my.dur.alert2")
             await trio.sleep(TIMEOUT*3/2)
             assert ncalls == 1
 
             # Now check if this thing really is durable
             await unit1.unregister(r1)
-            await unit2.unregister(r2)
+            await unit2.unregister(r2.tag)
             await trio.sleep(TIMEOUT/2)
-            await unit2.alert("my.dur.alert")
+            await unit2.alert("my.dur.alert2")
             await trio.sleep(TIMEOUT*3/2)
             assert ncalls == 1
-            r1 = await unit1.register(alert_me,"my.dur.alert", call_conv=CC_DICT, durable=True, ttl=1, multiple=True)
+            r1 = await unit1.register(alert_me,"my.dur.alert2", call_conv=CC_DICT, durable="my_very_durable_test", ttl=1, multiple=True)
             await trio.sleep(TIMEOUT*3/2)
             assert ncalls == 2
 
@@ -383,7 +416,11 @@ async def test_reg():
                 # There may be others.
             assert rx == 2
 
-            res = await unit2.rpc("qbroker.ping", uuid=unit1.uuid)
+            with pytest.raises(trio.TooSlowError):
+                async for d in unit2.poll("qbroker.ping", min_replies=99, max_delay=TIMEOUT/2, result_conv=CC_DATA):
+                    pass
+
+            res = await unit2.rpc("qbroker.ping", dest=unit1.app)
             assert res['app'] == unit1.app
             assert "rpc.qbroker.ping" in res['endpoints'], res['endpoints']
 

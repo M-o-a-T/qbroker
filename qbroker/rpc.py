@@ -152,7 +152,7 @@ class RPCservice(object):
         if self.call_conv == CC_DICT:
             a=(); k=msg.data
             if not isinstance(k,Mapping):
-                assert k is None
+                assert k is None, k
                 k = {}
         elif self.call_conv == CC_DATA:
             a=(msg.data,); k={}

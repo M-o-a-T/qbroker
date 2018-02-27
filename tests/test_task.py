@@ -54,7 +54,7 @@ async def test_task_basic():
                 await u.register(return_job,"task.return", call_conv=CC_TASK)
 
             res = []
-            async for r in unit2.rpc_multi("task.plain", dict(x='one', y='two', z='three'), max_replies=3,max_delay=TIMEOUT*3/2):
+            async for r in unit2.stream("task.plain", dict(x='one', y='two', z='three'), max_replies=3,max_delay=TIMEOUT*3/2):
                 res.append(r)
             assert res == ["Foo one","Bar two","Baz three"]
 
