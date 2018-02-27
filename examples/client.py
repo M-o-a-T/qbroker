@@ -12,7 +12,6 @@
 # courtesy of "make update". The original is in ‘utils/_boilerplate.py’.
 # Thus, please do not remove the next line, or insert any blank lines.
 #BP
-
 """
 This is a sample client.
 
@@ -32,6 +31,7 @@ logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 import os
 cfg = load_cfg(os.environ.get("QBROKER", "test.cfg"))
 u = None
+
 
 async def example(type="example.client", content=""):
     async with qbroker.open_broker(type, cfg=cfg) as u:
@@ -57,9 +57,12 @@ async def example(type="example.client", content=""):
         except Exception:
             print_exc()
             rc = 2
+    return rc
+
 
 def main(type="example.client", content=""):
-    trio.run(example, type, content)
+    sys.exit(trio.run(example, type, content))
+
 
 if __name__ == '__main__':
     main(*sys.argv[1:])

@@ -12,13 +12,12 @@
 # courtesy of "make update". The original is in ‘utils/_boilerplate.py’.
 # Thus, please do not remove the next line, or insert any blank lines.
 #BP
-
 """
 This code simulates a concurrent server.
 It listens for "example.server" events, thinks about them, and returns a
 reply.
 
-The number of concurrently-running calls is limited (globally) by 
+The number of concurrently-running calls is limited (globally) by
 the "config.amqp.limits.rpc.workers" setting.
 """
 
@@ -34,19 +33,23 @@ logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 import os
 cfg = load_cfg(os.environ.get("QBROKER", "test.cfg"))
 
+
 async def hello(name="Joe", **kw):
     print("working for", name)
     await trio.sleep(5)  # simulate doing some work in parallel
     print("DONE working for", name)
     return "Hello %s!" % name
 
+
 async def example():
     async with qbroker.open_broker("example.server", cfg=cfg) as u:
         u.register_rpc(hello, "example.hello", call_conv=CC_DICT)
         await trio.sleep(200)
 
+
 def main():
     trio.run(example)
+
 
 if __name__ == '__main__':
     try:

@@ -15,10 +15,8 @@
 
 import trio
 import qbroker
-from qbroker import CC_DATA
 
 from tests.util import load_cfg
-import signal
 import pprint
 import json
 
@@ -31,6 +29,7 @@ cfg = load_cfg(os.environ.get("QBROKER", "test.cfg"))
 u = None
 cf = None
 
+
 class mon:
     def __init__(self, u):
         self.u = u
@@ -40,9 +39,8 @@ class mon:
         async with u.conn.amqp.new_channel() as channel:
             await channel.exchange_declare("amq.rabbitmq.trace", "topic", passive=True)
             queue_name = 'mon_' + self.name + '_' + self.u.uuid
-            queue = (
-                await
-                channel.queue_declare(queue_name, auto_delete=True, passive=False, exclusive=True)
+            await channel.queue_declare(
+                queue_name, auto_delete=True, passive=False, exclusive=True
             )
             await channel.basic_qos(prefetch_count=1, prefetch_size=0, connection_global=False)
             await channel.queue_bind(queue_name, "amq.rabbitmq.trace", routing_key='#')
@@ -62,7 +60,9 @@ class mon:
                     pprint.pprint(m)
                     await channel.basic_client_ack(delivery_tag=envelope.delivery_tag)
 
+
 ##################### main loop
+
 
 async def mainloop():
     async with qbroker.open_broker("example.firehose", cfg=cfg) as _u:
@@ -75,8 +75,10 @@ async def mainloop():
         m = mon(u)
         await m.start()
 
+
 def main():
     trio.run(mainloop)
+
 
 if __name__ == '__main__':
     try:

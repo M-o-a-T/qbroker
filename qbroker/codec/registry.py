@@ -6,13 +6,11 @@ from __future__ import print_function, absolute_import
 from qbroker.util import TZ, UTC, format_dt, import_string
 import base64
 import datetime as dt
+import traceback
 
-import sys
-from time import mktime
 from pprint import pformat
 from collections import namedtuple
-
-from qbroker.util import TZ, UTC, format_dt, attrdict
+from time import mktime
 
 import logging
 logger = logging.getLogger(__name__)
@@ -61,7 +59,7 @@ class _binary(object):
 
     @staticmethod
     def encode(obj):
-        ## the string is purely for human consumption and therefore does not have a time zone
+        # the string is purely for human consumption and therefore does not have a time zone
         try:
             obj = obj.decode('utf-8', errors='strict')
         except Exception:
@@ -87,14 +85,14 @@ class _datetime(object):
 
     @staticmethod
     def encode(obj):
-        ## the string is purely for human consumption and therefore does not have a time zone
+        # the string is purely for human consumption and therefore does not have a time zone
         return {"t": mktime(obj.timetuple()), "s": format_dt(obj)}
 
     @staticmethod
     def decode(t=None, s=None, a=None, k=None, **_):
         if t:
             return dt.datetime.utcfromtimestamp(t).replace(tzinfo=UTC).astimezone(TZ)
-        else:  ## historic
+        else:  # historic
             assert a
             return dt.datetime(*a).replace(tzinfo=TZ)
 
@@ -112,7 +110,7 @@ class _date(object):
     def decode(d=None, s=None, a=None, **_):
         if d:
             return dt.date.fromordinal(d)
-        ## historic
+        # historic
         return dt.date(*a)
 
 
@@ -141,7 +139,6 @@ class _exc(object):
 
     @staticmethod
     def encode(obj):
-        n = obj.__class__.__module__ == "builtins", obj.__class__.__module__
         x = obj.__reduce__()
 
         def _enc(cls, a=None, k=None):
@@ -304,8 +301,6 @@ class BaseCodec(object):
                 res = {'_o': 'LIST', '_d': res}
 
         else:
-            odata = data
-
             if type(data) is not dict:
                 obj = type2cls.get(type(data), None)
                 if obj is None:
@@ -399,7 +394,7 @@ class BaseCodec(object):
 
         if tb is not None:
             if hasattr(tb, 'tb_frame'):
-                tb = format_tb(tb)
+                tb = traceback.format_tb(tb)
             res['tb'] = tb
         return res
 
@@ -464,7 +459,7 @@ class BaseCodec(object):
             res = {}
             for k, v in data.items():
                 if k.startswith("_o"):
-                    assert k[2] == '_', nk  # unknown meta key?
+                    assert k[2] == '_', k  # unknown meta key?
                     nk = '_o' + k[3:]
                 else:
                     nk = k

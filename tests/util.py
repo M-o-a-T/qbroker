@@ -16,7 +16,10 @@
 
 from yaml import safe_load
 
-import logging, sys, os
+import os
+import sys
+
+import logging
 logger = logging.getLogger("tests")
 
 

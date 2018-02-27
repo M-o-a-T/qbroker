@@ -15,7 +15,6 @@
 import trio
 from time import time
 
-from . import CC_MSG, CC_DICT, CC_DATA
 from .util import uuidstr, _NOTGIVEN
 #from aioamqp.properties import Properties
 from .util import attrdict
@@ -253,8 +252,8 @@ class BaseMsg(_MsgPart):
             t = 'alert'  # message from non-qbroker
         res = _types[t]._load(data, props)
 
-        for f in 'type message-id reply-to user-id timestamp content-type app-id correlation-id'.split(
-                ' '):
+        for f in 'type message-id reply-to user-id timestamp ' \
+                 'content-type app-id correlation-id'.split(' '):
             ff = fmap(f)
             m = getattr(props, ff, _NOTGIVEN)
             if m is not _NOTGIVEN:
@@ -346,7 +345,7 @@ class ServerMsg(BaseMsg):
 
     async def error(self, exc, _exit=None):
         """Return an error to the caller.
-        
+
         If _exit is set, the error has been raised by your handler and will
         only be returned if debugging is active and wanted. Otherwise it
         will propagate within the server.

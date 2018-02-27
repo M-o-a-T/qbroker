@@ -13,13 +13,11 @@
 #BP
 
 import pytest
-import os
 import trio
 from qbroker import CC_DICT, CC_DATA, CC_MSG, CC_TASK, open_broker
 from .testsupport import TIMEOUT, cfg, unit
-from qbroker.msg import MsgError, AlertMsg
+from qbroker.msg import MsgError
 from qbroker.conn import DeadLettered
-import unittest
 from unittest.mock import Mock
 import contextlib
 import socket
@@ -109,9 +107,6 @@ async def test_rpc_decorated():
                     pass
 
 
-from qbroker.codec.registry import register_obj
-
-
 class _TestError(Exception):
     pass
 
@@ -124,9 +119,9 @@ async def test_rpc_error():
             def call_me():
                 raise _TestError("foo")
 
-            r1 = await unit1.register(call_me, "err.call", call_conv=CC_DICT)
+            await unit1.register(call_me, "err.call", call_conv=CC_DICT)
             try:
-                res = await unit2.rpc("err.call", debug=True)
+                await unit2.rpc("err.call", debug=True)
             except _TestError as exc:
                 pass
             except MsgError:
@@ -143,7 +138,7 @@ async def test_rpc_direct():
             def call_me(x):
                 return "foo " + x
 
-            r1 = await unit1.register(call_me, "my.call", call_conv=CC_DATA)
+            await unit1.register(call_me, "my.call", call_conv=CC_DATA)
 
             with pytest.raises(RuntimeError):
                 await unit2.rpc("my.call", "nix", uuid=unit1.uuid, dest="whoever")
@@ -152,7 +147,7 @@ async def test_rpc_direct():
             assert res == "foo one", res
             with trio.move_on_after(TIMEOUT * 5 / 2):
                 try:
-                    t = await unit2.rpc("my.call", "No!", uuid=unit2.uuid)
+                    await unit2.rpc("my.call", "No!", uuid=unit2.uuid)
                 except DeadLettered as exc:
                     #assert exc.cls == "DeadLettered"
                     assert str(exc).startswith("Dead: queue=rpc route=qbroker.uuid."), str(exc)
@@ -465,7 +460,7 @@ async def test_alert_stop():
 
             await unit1.register(sleep1, "my.sleep", call_conv=CC_DICT, multiple=True)
             await unit2.register(sleep2, "my.sleep", call_conv=CC_DICT, multiple=True)
-            async for msg in unit2.poll("my.sleep", max_delay=TIMEOUT * 5 / 2):
+            async for msg in unit2.poll("my.sleep", max_delay=TIMEOUT * 5 / 2):  # noqa: F841
                 ncall += 1
                 break
             assert nhit == 2, nhit
@@ -532,7 +527,7 @@ async def test_rpc_bad_params():
             call_me = Mock(side_effect=lambda x: "foo " + x)
             await unit1.register(call_me, "my.call", call_conv=CC_DATA)
             try:
-                res = await unit2.rpc("my.call", dict(x="two"), debug=True)
+                await unit2.rpc("my.call", dict(x="two"), debug=True)
             except TypeError as exc:
                 assert type(exc) == TypeError
                 assert "convert" in str(exc) or "must be " in str(exc)
@@ -547,7 +542,7 @@ async def test_rpc_unroutable():
             call_me = Mock(side_effect=lambda x: "foo " + str(x))
             await unit1.register(call_me, "my.call", call_conv=CC_DATA)
             try:
-                res = await unit2.rpc("my.non_routed.call")
+                await unit2.rpc("my.non_routed.call")
             except DeadLettered as exc:
                 #assert exc.cls == "DeadLettered"
                 assert str(exc) == "Dead: queue=rpc route=my.non_routed.call", str(exc)
@@ -560,14 +555,14 @@ async def test_rpc_unroutable():
 async def test_enter_twice():
     u_ = unit(1)
     with pytest.raises(RuntimeError):
-        with u_ as us:
+        with u_:
             pass
     async with u_ as u:
         with pytest.raises(RuntimeError):
-            async with u_ as uu:
+            async with u_:
                 pass
         with pytest.raises(RuntimeError):
-            async with u as uuu:
+            async with u:
                 pass
 
 

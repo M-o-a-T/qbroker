@@ -19,7 +19,7 @@ from contextlib import suppress
 from trio_amqp.exceptions import AmqpClosedConnection
 
 from . import CC_MSG, CC_DICT, CC_DATA, CC_TASK
-from .util import attrdict, import_string, uuidstr
+from .util import uuidstr
 
 
 async def coro_wrapper(proc, *a, **kw):
@@ -120,7 +120,8 @@ class RPCservice(object):
         if isinstance(fn, RPCservice):
             return
         if name is None:
-            # name = (fn.__module__.strip('_')+'.'+fn.__name__.strip('_')).replace('_','.').replace('..','.')
+            # name = (fn.__module__.strip('_')+'.'+fn.__name__.strip('_')).
+            # .replace('_','.').replace('..','.')
             name = fn.__name__.strip('_').replace('_', '.').replace('..', '.')
         self.fn = fn
         self.name = name

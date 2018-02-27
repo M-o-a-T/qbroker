@@ -58,7 +58,6 @@ class Debugger(object):
             mode = "eval"
             do_vars = True
 
-        ed = dict(self.env)
         code = compile(code, "(debug)", mode)
         loc = args.copy()
 

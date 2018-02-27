@@ -20,10 +20,9 @@ import math  # inf
 from contextlib import contextmanager, suppress
 from async_generator import asynccontextmanager, aclosing
 
-from . import CC_DICT, CC_DATA, CC_MSG
-from .msg import _RequestMsg, PollMsg, RequestMsg, BaseMsg, AlertMsg, StreamMsg
+from . import CC_DATA, CC_MSG
+from .msg import PollMsg, RequestMsg, BaseMsg, AlertMsg, StreamMsg
 from .codec import get_codec, DEFAULT
-from .util import import_string
 
 import logging
 logger = logging.getLogger(__name__)
@@ -159,7 +158,7 @@ class Connection(object):
                 passive=False,
                 arguments=d
             )
-        except aioamqp.exceptions.ChannelClosed as exc:
+        except trio_amqp.exceptions.ChannelClosed as exc:
             if exc.code != 406:  # PRECONDITION_FAILED
                 raise
             ch.channel = await self.amqp.channel()
@@ -350,7 +349,7 @@ class Connection(object):
     ):
         """
         Package data and metadata into one message object.
-        
+
         Arguments:
             name:
                 the dispatch key to use for processing the message at the
@@ -570,8 +569,6 @@ class Connection(object):
             raise
 
     async def unregister(self, ep):
-        cfg = self.cfg
-
         if isinstance(ep, str):
             ep = self.rpcs.pop(ep)  # pragma: no cover
         else:

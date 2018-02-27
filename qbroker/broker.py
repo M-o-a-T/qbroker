@@ -13,16 +13,13 @@
 #BP
 
 import trio
-from traceback import print_exc
-from . import CC_MSG, CC_DATA, CC_DICT
+from . import CC_MSG, CC_DATA
 from .conn import Connection
-from .msg import RequestMsg, PollMsg, AlertMsg
 from .rpc import RPCservice
 from .config import DEFAULT_CONFIG
 from .util import uuidstr, combine_dict
 from collections.abc import Mapping
-from aioamqp.exceptions import ChannelClosed
-from async_generator import asynccontextmanager, aclosing
+from async_generator import aclosing
 from functools import partial
 
 import logging
@@ -45,7 +42,7 @@ class Broker:
             Connect to an AMQP server. See qbroker.config.DEFAULT_CONFIG for
             all recognized parameters.
 
-            >>> u = Unit("my_nice_server", 
+            >>> u = Unit("my_nice_server",
             ...         server=dict(
             ...            login="foo",
             ...            password="bar",
@@ -69,7 +66,6 @@ class Broker:
                 cfg:
                     Configuration. See :obj:`qbroker.config.DEFAULT_CONFIG`
                     for the defaults.
-                    
             """
 
         self.app = app
@@ -293,7 +289,7 @@ class Broker:
             Decorator/sync function to register an RPC listener.
 
             Example::
-                
+
                 @broker.rpc(call_conv=CC_MSG)
                 async def call_name(msg):
                     return {'result':'I got a message!'}

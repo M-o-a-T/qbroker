@@ -13,16 +13,10 @@
 #BP
 
 import pytest
-import os
 import trio
 from qbroker import CC_TASK
-from .testsupport import TIMEOUT, cfg, unit
-from qbroker.msg import MsgError, AlertMsg
+from .testsupport import TIMEOUT, unit
 from qbroker.conn import DeadLettered
-import unittest
-from unittest.mock import Mock
-import contextlib
-import socket
 
 
 async def plain_job(msg):

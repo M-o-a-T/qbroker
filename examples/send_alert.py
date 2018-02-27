@@ -26,6 +26,7 @@ import os
 cfg = load_cfg(os.environ.get("QBROKER", "test.cfg"))
 u = None
 
+
 async def example():
     async with qbroker.open_broker("example.send_alert", cfg=cfg) as _u:
         global u
@@ -34,8 +35,10 @@ async def example():
         async for r in u.alert(sys.argv[1], _data=json.loads(' '.join(sys.argv[2:])), timeout=3):
             pprint(r.data)
 
+
 def main():
     trio.run(example)
+
 
 if __name__ == '__main__':
     try:

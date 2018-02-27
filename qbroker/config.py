@@ -25,8 +25,8 @@ DEFAULT_CONFIG = dict(
         alert='alert',  # topic: broadcast messages, may elicit multiple replies
         rpc='rpc',  # topic: RPC requests, will trigger exactly one reply
         reply='reply',  # direct: all replies go here
-        dead=
-        'dead',  # fanout: dead messages (TTL expires, reject, RPC/alert unrouteable, …)
+        dead='dead',  # fanout: dead messages
+                      # (TTL expires, reject, RPC/alert unrouteable, …)
     ),
     queues=dict(
         alert='alert_',  # plus the unit UUID. Nonpersistent.

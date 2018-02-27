@@ -12,13 +12,6 @@
 # Thus, please do not remove the next line, or insert any blank lines.
 #BP
 
-import pytest
-import inspect
-from async_generator import asynccontextmanager
-from .testsupport import cfg
-
-import qbroker
-
 import logging
 logging.basicConfig(filename='test.log', level=logging.DEBUG)
 logger = logging.getLogger(__name__)

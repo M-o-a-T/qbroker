@@ -15,9 +15,7 @@
 
 import trio
 import qbroker
-from qbroker import CC_DATA
 from tests.util import load_cfg
-import signal
 import pprint
 import json
 
@@ -32,6 +30,7 @@ cf = None
 
 channels = {'alert': 'topic', 'rpc': 'topic', 'reply': 'direct'}
 
+
 class mon:
     def __init__(self, u, typ, name):
         self.u = u
@@ -42,9 +41,8 @@ class mon:
         async with u.conn.amqp.new_channel() as channel:
             await channel.exchange_declare(self.name, self.typ, passive=True)
             queue_name = 'mon_' + self.name + '_' + self.u.uuid
-            queue = (
-                await
-                channel.queue_declare(queue_name, auto_delete=True, passive=False, exclusive=True)
+            await channel.queue_declare(
+                queue_name, auto_delete=True, passive=False, exclusive=True
             )
             await channel.basic_qos(prefetch_count=1, prefetch_size=0, connection_global=False)
             await channel.queue_bind(self.queue_name, self.name, routing_key='#')
@@ -53,8 +51,8 @@ class mon:
 
                 async for msg in cons:
                     (body, envelope, properties) = msg
-                    if properties.content_type == 'application/json' or properties.content_type.startswith(
-                            'application/json+'):
+                    if properties.content_type == 'application/json' or \
+                            properties.content_type.startswith('application/json+'):
                         body = json.loads(body.decode('utf-8'))
 
                     if self.name == 'alert':
@@ -85,6 +83,7 @@ class mon:
                     pprint.pprint(m)
                     await self.channel.basic_client_ack(delivery_tag=envelope.delivery_tag)
 
+
 class BindMe:
     def __init__(self, c, *a, **k):
         self.c = c
@@ -93,6 +92,7 @@ class BindMe:
 
     async def run(self):
         await self.c.channel.queue_bind(*self.a, **self.k)
+
 
 class UnBindMe:
     def __init__(self, c, *a, **k):
@@ -103,9 +103,11 @@ class UnBindMe:
     async def run(self):
         await self.c.channel.queue_unbind(*self.a, **self.k)
 
+
 ##################### main loop
 
 jobs = None
+
 
 async def mainloop():
     global jobs
@@ -125,8 +127,10 @@ async def mainloop():
             async for j in jobs:
                 await j.run()
 
+
 def main():
     trio.run(mainloop)
+
 
 if __name__ == '__main__':
     try:

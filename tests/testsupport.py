@@ -15,7 +15,6 @@
 import os
 import qbroker
 import inspect
-from async_generator import asynccontextmanager
 
 TIMEOUT = 0.5
 

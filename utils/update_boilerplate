@@ -5,5 +5,5 @@ if test $(git ls-files --modified | fgrep -zv _boilerplate.py | wc -l) != 0 ; th
 	exit 1
 fi
 
-perl -i utils/replace_boilerplate.pl $( git ls-files -z|xargs -0r fgrep -xl "##BP" )
+perl -i utils/replace_boilerplate.pl $( git ls-files -z|xargs -0r fgrep -xl "#BP" )
 

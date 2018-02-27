@@ -14,19 +14,13 @@
 
 import trio
 import pytest
-import os
-from qbroker import CC_DICT, CC_DATA, CC_MSG
 from qbroker import open_broker
-from qbroker.msg import MsgError, AlertMsg
-from qbroker.conn import DeadLettered
 from .testsupport import TIMEOUT, cfg, unit
-import unittest
-from unittest.mock import Mock
 
 
 @pytest.mark.trio
 async def test_basic():
-    async with open_broker("test.zero", **cfg) as b:
+    async with open_broker("test.zero", **cfg):
         await trio.sleep(TIMEOUT / 2)
 
 
