@@ -72,7 +72,7 @@ REQUIREMENTS = [
 ]
 
 setup(
-    name='QBroker',
+    name='trio-qbroker',
     license='GPLv3+',
     version='.'.join(str(x) for x in get_version()),
     description='QBroker is a Trio-compatible wrapper for RPC via AMQP',

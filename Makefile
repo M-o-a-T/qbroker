@@ -25,3 +25,4 @@ pypi:
 
 upload:	pypi
 	git push-all --tags
+

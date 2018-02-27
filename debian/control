@@ -11,13 +11,11 @@ Build-Depends: debhelper (>= 7),
 Standards-Version: 3.9.1
 X-Python3-Version: >= 3.5
 
-Package: python3-qbroker
+Package: python3-trio-qbroker
 Architecture: all
 Depends: ${misc:Depends}, ${python3:Depends},
   python3-trio-amqp (>> 0.2.1),
   python3-tz,
-Recommends: 
-  python3-trio-asyncio
 Description: Quick Broker.
  QBroker is a minimal wrapper for asynchronous, debuggable RPC via AMQP.
  .
