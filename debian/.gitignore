@@ -2,6 +2,5 @@
 /*.log
 /*.debhelper
 /*.substvars
-/python-qbroker
-/python3-qbroker
+/python3-trio-qbroker
 /debhelper-build-stamp

@@ -4,7 +4,7 @@
 __pycache__
 /test.log
 /*.cfg
-/QBroker.egg-info/
+/*.egg-info/
 /dist/
 /build/
 /.pybuild
