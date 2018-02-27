@@ -15,15 +15,15 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 
 import trio
 import trio_amqp
+from trio_amqp.exceptions import AmqpClosedConnection
 import weakref
 import math  # inf
-from collections.abc import Mapping
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from async_generator import asynccontextmanager, aclosing
 
 from . import CC_DICT,CC_DATA,CC_MSG
 from .msg import _RequestMsg,PollMsg,RequestMsg,BaseMsg,AlertMsg
-from .codec import get_codec
+from .codec import get_codec, DEFAULT
 from .util import import_string
 
 import logging
@@ -108,6 +108,9 @@ class Connection(object):
                     await self.setup_channels()
 
                     yield self
+                except BaseException as exc:
+                    logger.debug("Problem in connection", exc_info=exc)
+                    raise
                 finally:
                     self.is_disconnected.set()
                     nursery.cancel_scope.cancel()
@@ -165,7 +168,6 @@ class Connection(object):
             if route_key is not None:
                 logger.debug("Chan %s: bind %s %s %s", ch.channel,cfg.exchanges[name], route_key, ch.queue['queue'])
                 await ch.channel.queue_bind(ch.queue['queue'], cfg.exchanges[name], routing_key=route_key)
-                pass
         else:
             assert callback is None
 
@@ -190,8 +192,8 @@ class Connection(object):
         try:
             codec = get_codec(properties.content_type)
             msg = codec.decode(body)
-            msg = BaseMsg.load(msg,envelope,properties)
-            reply = msg.make_response()
+            msg = BaseMsg.load(msg,envelope,properties, conn=self, type="server", reply_channel=self._ch_reply.channel, reply_exchange=self._ch_reply.exchange)
+            reply = msg.make_response(self)
             reply_to = getattr(msg, 'reply_to',None)
             exc = envelope.exchange_name
             if exc.startswith("dead"):
@@ -201,12 +203,13 @@ class Connection(object):
                 # usually, this is no big deal: call debug(), not exception().
                 logger.debug("Undeliverable one-way message", exc_info=exc)
                 return
-            reply.set_error(exc, envelope.routing_key, "reply")
-            reply,props = reply.dump(self)
-            reply = self.codec.encode(reply)
+            reply.set_error(exc, envelope.routing_key)
+            reply,props = reply.dump(self, codec=self.codec)
+            logger.debug("DeadLetter %s to %s", envelope.routing_key, self._ch_reply.exchange)
             await self._ch_reply.channel.publish(reply, self._ch_reply.exchange, reply_to, properties=props)
         finally:
-            await channel.basic_client_ack(envelope.delivery_tag)
+            with trio.open_cancel_scope(shield=True,deadline=trio.current_time()+1):
+                await channel.basic_client_ack(envelope.delivery_tag)
 
     async def _on_rpc_in(self, *params):
         self.q_rpc.put_nowait(params)
@@ -215,141 +218,71 @@ class Connection(object):
         self.q_alert.put_nowait(params)
 
     async def _on_alert(self, channel,body,envelope,properties):
-        logger.debug("read alert %s on %s: %s",envelope.delivery_tag, envelope.routing_key,body)
+        await self._dispatch("alert", channel,body,envelope,properties)
+
+    async def _on_rpc(self, channel,body,envelope,properties):
+        await self._dispatch("rpc", channel,body,envelope,properties)
+
+    async def _dispatch(self, mode,channel,body,envelope,properties):
+
+        try:
+            routing_key = properties.headers['routing-key']
+        except (KeyError,AttributeError):
+            routing_key = envelope.routing_key
+        if routing_key != envelope.routing_key:
+            logger.debug("read %s %s on %s for %s: %s",mode,envelope.delivery_tag, envelope.routing_key, routing_key,body)
+        else:
+            logger.debug("read %s %s for %s: %s",mode,envelope.delivery_tag, routing_key,body)
         try:
             codec = get_codec(properties.content_type)
             msg = codec.decode(body)
-            msg = BaseMsg.load(msg,envelope,properties)
+            msg = BaseMsg.load(msg,envelope,properties, channel=channel, type='server', reply_channel=self._ch_reply.channel, reply_exchange=self._ch_reply.exchange, conn=self)
+
+            n = mode+'.'+msg.routing_key
             try:
-                rpc = self.rpcs['alert.'+msg.routing_key]
+                rpc = self.rpcs[n]
             except KeyError:
-                n = msg.routing_key
                 while True:
                     i = n.rfind('.')
                     if i < 1:
-                        rpc = self.rpcs.get('alert.#',None)
-                        if rpc is not None:
-                            break
                         raise
                     n = n[:i]
-                    rpc = self.rpcs.get('alert.'+n+'.#',None)
+                    rpc = self.rpcs.get(n+'.#',None)
                     if rpc is not None:
                         break
-            msg.codec = codec
-            if rpc.call_conv == CC_DICT:
-                a=(); k=msg.data
-                if not isinstance(k,Mapping):
-                    assert k == ''
-                    k = {}
-            elif rpc.call_conv == CC_DATA:
-                a=(msg.data,); k={}
-            else:
-                a=(msg,); k={}
+            await rpc.run(msg)
 
-            reply_to = getattr(msg, 'reply_to',None)
-            if reply_to:
-                try:
-                    data = await rpc.run(*a,**k)
-                except Exception as exc:
-                    reply = msg.make_response()
-                    logger.exception("error on alert %s: %s", envelope.delivery_tag, body)
-                    reply.set_error(exc, rpc.name,"reply")
-                else:
-                    if data is None:
-                        return
-                    reply = msg.make_response()
-                    reply.data = data
-
-                codec = msg.codec
-                if codec is None:
-                    codec = self.codec
-                elif isinstance(codec,str):
-                    codec = get_codec(codec)
-                reply,props = reply.dump(self, codec=codec)
-                await self._ch_reply.channel.publish(reply, self._ch_reply.exchange, reply_to, properties=props)
-            else:
-                try:
-                    await rpc.run(*a,**k)
-                except Exception as exc:
-                    logger.exception("error on alert %s: %s", envelope.delivery_tag, body)
-                reply = None
-
-        except Exception as exc:
-            try:
-                await self._ch_alert.channel.basic_reject(envelope.delivery_tag)
-            except Exception as exc:
-                logger.exception("problem with alert reject %s: %s", envelope.delivery_tag, body)
-            else:
-                logger.exception("problem with alert %s: %s", envelope.delivery_tag, body)
-        else:
-            logger.debug("acked alert %s: %s",envelope.delivery_tag, reply)
-            await channel.basic_client_ack(envelope.delivery_tag)
-
-    async def _on_rpc(self, channel,body,envelope,properties):
-        logger.debug("read rpc %s on %s: %s",envelope.delivery_tag,envelope.routing_key,body)
-        try:
-            codec = get_codec(properties.content_type)
-            msg = codec.decode(body)
-            msg = BaseMsg.load(msg,envelope,properties)
-            msg.codec = codec
-            rpc = self.rpcs['rpc.'+msg.routing_key]
-            reply = msg.make_response()
-            try:
-                if rpc.call_conv == CC_DICT:
-                    a=(); k=msg.data or {}
-                elif rpc.call_conv == CC_DATA:
-                    a=(msg.data,); k={}
-                else:
-                    a=(msg,); k={}
-                reply.data = await rpc.run(*a,**k)
-            except Exception as exc:
-                logger.exception("error on rpc %s: %s", envelope.delivery_tag, body)
-                reply.set_error(exc, rpc.name,"reply")
-
-            codec = msg.codec
-            if codec is None:
-                codec = self.codec
-            elif isinstance(codec,str):
-                codec = get_codec(codec)
-            reply,props = reply.dump(self,codec=codec)
-            await channel.publish(reply, self._ch_reply.exchange, msg.reply_to, properties=props)
-        except Exception as exc:
-            try:
-                await channel.basic_reject(envelope.delivery_tag)
-            except Exception as exc:
-                logger.exception("problem with rpc reject %s: %s", envelope.delivery_tag, body)
-            else:
-                logger.exception("problem with rpc %s: %s", envelope.delivery_tag, body)
-        else:
-            try:
-                await channel.basic_client_ack(envelope.delivery_tag)
-            except Exception as exc:
-                logger.exception("problem with rpc ack: %s", envelope.delivery_tag)
-            else:
-                logger.debug("acked rpc %s to %s: %s",envelope.delivery_tag, msg.correlation_id, reply)
+        except KeyError:
+            logger.info("Unknown message %s %s on %s for %s: %s",mode,envelope.delivery_tag, envelope.routing_key, routing_key,body)
+            await channel.basic_reject(envelope.delivery_tag)
+            
+        except BaseException:
+            with trio.open_cancel_scope(shield=True):
+                with suppress(AmqpClosedConnection):
+                    await channel.basic_reject(envelope.delivery_tag)
+            raise
 
     async def _on_reply(self, channel,body,envelope,properties):
         logger.debug("read reply %s for %s: %s",envelope.delivery_tag, properties.correlation_id, body)
         try:
             codec = get_codec(properties.content_type)
             msg = codec.decode(body)
-            msg = BaseMsg.load(msg,envelope,properties)
+            msg = BaseMsg.load(msg,envelope,properties, conn=self, channel=channel)
             req = self.replies[msg.correlation_id]
-            try:
-                await req.recv_reply(msg)
-            except Exception as exc: # pragma: no cover
-                if not f.done():
-                    f.set_exception(exc)
+            await req.recv_reply(msg)
+        except KeyError as exc:
+            logger.warning("Undelivered reply %s: %s", msg.correlation_id, msg)
+            await channel.basic_client_ack(envelope.delivery_tag)
         except Exception as exc:
             await self._ch_reply.channel.basic_reject(envelope.delivery_tag)
-            logger.exception("problem with message %s: %s", envelope.delivery_tag, body)
+            logger.exception("problem with reply %s: %s", envelope.delivery_tag, body)
         else:
             logger.debug("ack reply %s",envelope.delivery_tag)
             await channel.basic_client_ack(envelope.delivery_tag)
 
     # client
 
-    def _pack_rpc(self,name, data='', *, MsgClass=None, exchange=None, dest=None, uuid=None, codec=None, **kwargs):
+    def _pack_rpc(self,name, data=None, *, MsgClass=None, exchange=None, dest=None, uuid=None, codec=None, **kwargs):
         """
         Package data and metadata into one message object.
         
@@ -397,6 +330,8 @@ class Connection(object):
 
         if exchange is None:
             exchange = self.cfg.exchanges[msg.type]
+        if codec is None:
+            codec = DEFAULT
         if isinstance(codec, str):
             codec = get_codec(codec)
         msg._c_exchange = exchange

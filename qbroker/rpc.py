@@ -13,9 +13,13 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 ## Thus, please do not remove the next line, or insert any blank lines.
 ##BP
 
+import trio
 import inspect
+from collections.abc import Mapping
+from contextlib import suppress
+from trio_amqp.exceptions import AmqpClosedConnection
 
-from . import CC_MSG,CC_DICT,CC_DATA
+from . import CC_MSG,CC_DICT,CC_DATA,CC_TASK
 from .util import attrdict, import_string, uuidstr
 
 async def coro_wrapper(proc, *a, **kw):
@@ -101,7 +105,7 @@ class RPCservice(object):
             return fn
         return object.__new__(cls)
 
-    def __init__(self, fn, name=None, exchange=None, call_conv=CC_MSG, durable=None, ttl=None, multiple=False):
+    def __init__(self, fn, name=None, exchange=None, call_conv=CC_MSG, durable=None, ttl=None, multiple=False, debug=False):
         if isinstance(fn, RPCservice):
             return
         if name is None:
@@ -114,6 +118,7 @@ class RPCservice(object):
         self.uuid = uuidstr()
         self.ttl = ttl
         self.multiple = multiple
+        self.debug = debug
         if exchange is None:
             exchange = "alert" if self.multiple else "rpc"
         self.exchange = exchange
@@ -129,20 +134,44 @@ class RPCservice(object):
         else:
             return "rpc"
 
-    @property
-    def is_sync(self):
-        """Return a flag whether the function is called synchronously.
-        True: yes
-        False: no, call async.
-        None: no, use a task to call it.
-        """
-        if self._mode is None:
-            self._mode = inspect.isasyncfunction(self.fn)
-        return self._mode
-        
-    async def run(self, *a,**k):
-        res = await coro_wrapper(self.fn, *a, **k)
-        return res
+    async def _run(self, fn, msg, task_status=trio.TASK_STATUS_IGNORED):
+        task_status.started()
+        try:
+            res = await fn(msg)
+        except Exception as exc:
+            await msg.error(exc, _exit=self.debug)
+        else:
+            if res is not None:
+                await msg.reply(res)
+        finally:
+            with trio.open_cancel_scope(shield=True,deadline=trio.current_time()+1):
+                with suppress(AmqpClosedConnection):
+                    await msg.aclose()
+
+    async def run(self, msg):
+        if self.call_conv == CC_DICT:
+            a=(); k=msg.data
+            if not isinstance(k,Mapping):
+                assert k is None
+                k = {}
+        elif self.call_conv == CC_DATA:
+            a=(msg.data,); k={}
+        else:
+            a=(msg,); k={}
+
+        if self.call_conv == CC_TASK:
+            await msg.conn.nursery.start(self._run, self.fn, msg)
+        else:
+            try:
+                res = await coro_wrapper(self.fn, *a, **k)
+                if res is not None:
+                    await msg.reply(res)
+            except Exception as exc:
+                await msg.error(exc, _exit=self.debug)
+            finally:
+                with trio.open_cancel_scope(shield=True,deadline=trio.current_time()+1):
+                    with suppress(AmqpClosedConnection):
+                        await msg.aclose()
 
     def __str__(self):
         if self.is_alert:

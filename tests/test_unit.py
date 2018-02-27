@@ -51,11 +51,11 @@ async def test_rpc_basic():
             res = await unit1.rpc("my.call", "two")
             assert res == "foo two"
             with pytest.raises(TypeError):
-                res = await unit1.rpc("my.call", dict(x="two"))
+                res = await unit1.rpc("my.call", dict(x="two"), debug=True)
             res = await unit1.rpc("my.call.x", dict(x="three"))
             assert res == "foo three"
             with pytest.raises(TypeError):
-                res = await unit1.rpc("my.call", dict(y="duh"))
+                res = await unit1.rpc("my.call", dict(y="duh"), debug=True)
             res = await unit1.rpc("my.call.m", dict(x="four"))
             assert res == "foo four"
             await unit1.unregister(r1)
@@ -82,11 +82,11 @@ async def test_rpc_decorated():
             res = await unit1.rpc("my.call", "two")
             assert res == "foo two"
             with pytest.raises(TypeError):
-                res = await unit1.rpc("my.call", dict(x="two"))
+                res = await unit1.rpc("my.call", dict(x="two"), debug=True)
             res = await unit1.rpc("my.call.x", dict(x="three"))
             assert res == "foo three"
             with pytest.raises(TypeError):
-                res = await unit1.rpc("my.call", dict(y="duh"))
+                res = await unit1.rpc("my.call", dict(y="duh"), debug=True)
             res = await unit1.rpc("my.call.m", dict(x="four"))
             assert res == "foo four"
             await unit1.unregister(r1)
@@ -108,7 +108,7 @@ async def test_rpc_error():
                 raise _TestError("foo")
             r1 = await unit1.register(call_me,"err.call", call_conv=CC_DICT)
             try:
-                res = await unit2.rpc("err.call")
+                res = await unit2.rpc("err.call", debug=True)
             except _TestError as exc:
                 pass
             except MsgError:
@@ -152,6 +152,9 @@ async def test_rpc_unencoded():
                     # message was rejected. Thus deadlettered.
                     #assert exc.cls == "DeadLettered"
                     assert str(exc) == "Dead: queue=rpc route=my.call", str(exc)
+                except TypeError as exc:
+                    # alternate resolution: forward the error
+                    assert "Object of type 'object' is not JSON serializable" in str(exc), exc
                 except Exception as exc:
                     assert False,exc
                 else:
@@ -192,9 +195,9 @@ async def test_alert_callback():
             r1 = await unit1.register(alert_me,"my.alert", call_conv=CC_DICT, multiple=True)
             await unit2.register(alert_me,"my.alert", call_conv=CC_DICT, multiple=True)
             n = 0
-            async for x in unit2.poll("my.alert",{'y':"dud1"},result_conv=CC_DATA, max_delay=TIMEOUT):
+            async for x in unit2.poll("my.alert",{'y':"dud1"},result_conv=CC_MSG, max_delay=TIMEOUT):
                 n += 1
-                assert x == "bar dud1", x
+                assert x.data == "bar dud1", x
             assert n == 2
             n = 0
             async for x in unit1.poll("my.alert",{'y':"dud2"},result_conv=CC_DATA, max_delay=TIMEOUT):
@@ -213,11 +216,18 @@ async def test_alert_uncodeable():
         async with unit(2) as unit2:
             alert_me = Mock(side_effect=lambda : object())
             await unit1.register(alert_me,"my.alert", call_conv=CC_DICT, multiple=True)
-            try:
-                async for x in unit2.poll("my.alert", max_delay=TIMEOUT):
-                    assert False, x
-            except DeadLettered as exc:
-                pass
+            for debug in (0,1):
+                try:
+                    async for x in unit2.poll("my.alert", max_delay=TIMEOUT, debug=debug):
+                        assert False, x
+                except TypeError as exc:
+                    assert debug
+                    assert "Object of type 'object' is not JSON serializable" in str(exc)
+                except DeadLettered as exc:
+                    assert not debug
+                    pass
+                else:
+                    assert False
 
 @pytest.mark.trio
 async def test_alert_binary():
@@ -240,10 +250,14 @@ async def test_alert_oneway():
             alert_me2 = Mock()
             alert_me3 = Mock()
             alert_me4 = Mock()
+            def _alert_me3(msg):
+                alert_me3(msg.data)
+            def _alert_me4(msg):
+                alert_me4(msg.data)
             await unit1.register(alert_me1,"my.alert1", call_conv=CC_DICT, multiple=True)
             await unit1.register(alert_me2,"my.alert2", call_conv=CC_DATA, multiple=True)
-            await unit1.register(alert_me3,"my.alert3", multiple=True) # default is CC_MSG
-            await unit1.register(alert_me4,"my.#", multiple=True) # default is CC_MSG
+            await unit1.register(_alert_me3,"my.alert3", multiple=True) # default is CC_MSG
+            await unit1.register(_alert_me4,"my.#", multiple=True) # default is CC_MSG
             await unit2.alert("my.alert1",{'y':"dud"})
             await unit2.alert("my.alert2",{'y':"dud"})
             await unit2.alert("my.alert3",{'y':"dud"})
@@ -251,8 +265,8 @@ async def test_alert_oneway():
             await trio.sleep(TIMEOUT/2)
             alert_me1.assert_called_with(y='dud')
             alert_me2.assert_called_with(dict(y='dud'))
-            alert_me3.assert_called_with(AlertMsg(data=dict(y='dud')))
-            alert_me4.assert_called_with(AlertMsg(data=dict(z='dud')))
+            alert_me3.assert_called_with(dict(y='dud'))
+            alert_me4.assert_called_with(dict(z='dud'))
 
 @pytest.mark.trio
 async def test_alert_no_data():
@@ -382,12 +396,12 @@ async def test_alert_error():
             error_me1 = Mock(side_effect=err)
             await unit1.register(error_me1,"my.error1", call_conv=CC_DATA, multiple=True)
             called = False
-            async for d in unit2.poll("my.error1", min_replies=1,max_replies=2,max_delay=TIMEOUT, result_conv=CC_MSG):
+            async for d in unit2.poll("my.error1", min_replies=1,max_replies=2,max_delay=TIMEOUT, result_conv=CC_MSG, debug=True):
                 assert not called
                 assert d.error.cls == "RuntimeError"
                 assert d.error.message == "dad"
                 called = True
-            error_me1.assert_called_with("")
+            error_me1.assert_called_with(None)
 
             with pytest.raises(RuntimeError):
                 async for d in unit2.poll("my.error1", result_conv=CC_DATA, min_replies=1,max_replies=2,max_delay=TIMEOUT):
@@ -403,7 +417,7 @@ async def test_rpc_bad_params():
             call_me = Mock(side_effect=lambda x: "foo "+x)
             await unit1.register(call_me,"my.call", call_conv=CC_DATA)
             try:
-                res = await unit2.rpc("my.call", dict(x="two"))
+                res = await unit2.rpc("my.call", dict(x="two"), debug=True)
             except TypeError as exc:
                 assert type(exc) == TypeError
                 assert "convert" in str(exc) or "must be " in str(exc)

@@ -29,7 +29,7 @@ class Debugger(object):
     async def run(self,msg):
         """Evaluate a debugger command."""
         msg.codec = 'application/json+repr'
-        args = msg.data if msg.data != '' else {}
+        args = msg.data or {}
         cmd = args.pop('cmd',None)
 
         if cmd is None:

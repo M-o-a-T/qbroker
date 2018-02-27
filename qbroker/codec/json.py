@@ -8,7 +8,6 @@ from json.encoder import JSONEncoder
 from json.decoder import JSONDecoder
 from qbroker.util import attrdict, TZ,UTC, format_dt
 import datetime as dt
-from collections.abc import Mapping
 
 CODEC = "application/json"
 

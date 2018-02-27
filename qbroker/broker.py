@@ -105,13 +105,12 @@ class Broker:
 
         if not self.hidden:
             self.on_rpc(self._alert_ping, "qbroker.ping",call_conv=CC_DATA, multiple=True)
-            self.on_rpc(self._reply_ping,"qbroker.ping")
+            self.on_rpc(self._reply_ping, "qbroker.ping")
             self.on_rpc(self._alert_ping, "qbroker.app."+self.app, call_conv=CC_DATA, multiple=True)
-            self.on_rpc(self._reply_ping,"qbroker.app."+self.app)
-            self.on_rpc(self._reply_ping,"qbroker.uuid."+self.uuid)
+            self.on_rpc(self._reply_ping, "qbroker.app."+self.app)
         if self.debug is not None:
-            self.on_rpc(self._reply_debug, "qbroker.debug.app."+self.app, call_conv=CC_MSG)
-            self.on_rpc(self._reply_debug, "qbroker.debug.uuid."+self.uuid, call_conv=CC_MSG)
+            self.on_rpc(self._reply_debug, "qbroker.debug.app."+self.app, call_conv=CC_MSG, debug=True)
+            self.on_rpc(self._reply_debug, "qbroker.debug.uuid."+self.uuid, call_conv=CC_MSG, debug=True)
             # uuid: done in conn setup
 
     async def __aenter__(self):
@@ -132,6 +131,9 @@ class Broker:
             try:
                 if self.conn is not None:
                     await self.conn.aclose()
+            except BaseException as exc:
+                logger.debug("Conn ended", exc_info=exc)
+                raise
             finally:
                 self.conn = None
                 self._running = False
@@ -176,9 +178,10 @@ class Broker:
                 self._connected.clear()
                 logger.exception("Error. TODO Reconnecting after a while.")
             finally:
-                if self.conn is not None:
-                    await self.conn.aclose()
-                    self.conn = None
+                c,self.conn = self.conn,None
+                if c is not None:
+                    with trio.open_cancel_scope(shield=True,deadline=trio.current_time()+1):
+                        await c.aclose()
 
             self.restarting = True
             if self._stop.is_set():
@@ -217,26 +220,37 @@ class Broker:
     ## client
 
     async def rpc(self, *args, **kwargs):
-        """A remote procedure call returns one reply."""
+        """A remote procedure call returns one reply.
+        """
         return await self.conn.rpc(*args, **kwargs)
 
-    async def poll_first(self, *args, **kwargs):
-        """An alert call returns the first reply."""
-        async with aclosing(self.conn.poll(*args, **kwargs)) as p:
+    async def rpc_multi(self, *args, **kwargs):
+        """A remote procedure call that returns more than one reply.
+        """
+        # yield from self.conn.poll(*args, **kwargs)  # py3.7
+        async with aclosing(self.conn.poll(*args, _MsgClass=RequestMsg, **kwargs)) as p:
             async for r in p:
-                return r
+                yield r
 
     async def alert(self, *args, **kwargs):
-        """An alert call ("pubsub") sends one request to multiple recipients. No reply."""
+        """An alert call ("pubsub") sends one request to multiple recipients. No reply.
+        """
         await self.conn.alert(*args, **kwargs)
 
     async def poll(self, *args, **kwargs):
-        """A poll call expects replies either from more than one client.
+        """A poll call expects replies from more than one client.
         """
         # yield from self.conn.poll(*args, **kwargs)  # py3.7
         async with aclosing(self.conn.poll(*args, **kwargs)) as p:
             async for r in p:
                 yield r
+
+    async def poll_first(self, *args, **kwargs):
+        """An alert call returns the first reply.
+        """
+        async with aclosing(self.conn.poll(*args, **kwargs)) as p:
+            async for r in p:
+                return r
 
     async def stream(self, *args, **kwargs):
         """A stream call expects multiple replies from a single client.
