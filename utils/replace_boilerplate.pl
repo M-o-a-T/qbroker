@@ -14,6 +14,6 @@ BEGIN {
 
 while(<ARGV>) {
 	print $1 if s:\A(#!/.+\n):: ;
-	$_ = $BP if m:^##\s*BP\s*\n+\z:m;
+	$_ = $BP if m:^#\s*BP\s*\n+\z:m;
 	print;
 }

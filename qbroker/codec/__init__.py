@@ -22,7 +22,6 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 ##  courtesy of "make update". The original is in ‘scripts/_boilerplate.py’.
 ##  Thus, do not remove the next line, or insert any blank lines above.
 ##BP
-
 """Collect codec info"""
 
 from importlib import import_module
@@ -34,18 +33,20 @@ logger = logging.getLogger(__name__)
 
 codecs = {}
 default_codec = None
-DEFAULT="DEFAULT"
+DEFAULT = "DEFAULT"
+
 def get_codec(name):
     global default_codec
 
     if not codecs:
+
         def _check(m):
             global default_codec
             try:
-                if isinstance(m,str):
+                if isinstance(m, str):
                     m = import_module(m)
             except ImportError as ex:
-                raise ImportError(m) from ex # pragma: no cover
+                raise ImportError(m) from ex  # pragma: no cover
                 # not going to ship a broken file for testing this
             else:
                 try:
@@ -53,14 +54,13 @@ def get_codec(name):
                 except AttributeError:
                     pass
                 else:
-                    if getattr(m,'DEFAULT',False):
+                    if getattr(m, 'DEFAULT', False):
                         default_codec = m
 
-        for a,b,c in pkgutil.walk_packages((os.path.dirname(__file__),), __package__+'.'):
+        for a, b, c in pkgutil.walk_packages((os.path.dirname(__file__),), __package__ + '.'):
             _check(b)
 
     if name == DEFAULT:
         return default_codec
-        
-    return codecs[name]
 
+    return codecs[name]

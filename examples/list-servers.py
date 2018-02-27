@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, print_function, division, unicode_literals
-##
-## This file is part of QBroker, an easy to use RPC and broadcast
-## client+server using AMQP.
-##
-## QBroker is Copyright © 2016 by Matthias Urlichs <matthias@urlichs.de>,
-## it is licensed under the GPLv3. See the file `README.rst` for details,
-## including optimistic statements by the author.
-##
-## This paragraph is auto-generated and may self-destruct at any time,
-## courtesy of "make update". The original is in ‘utils/_boilerplate.py’.
-## Thus, please do not remove the next line, or insert any blank lines.
-##BP
+#
+# This file is part of QBroker, an easy to use RPC and broadcast
+# client+server using AMQP.
+#
+# QBroker is Copyright © 2016-2018 by Matthias Urlichs <matthias@urlichs.de>,
+# it is licensed under the GPLv3. See the file `README.rst` for details,
+# including optimistic statements by the author.
+#
+# This paragraph is auto-generated and may self-destruct at any time,
+# courtesy of "make update". The original is in ‘utils/_boilerplate.py’.
+# Thus, please do not remove the next line, or insert any blank lines.
+#BP
 
 import trio
 import qbroker
@@ -26,18 +25,20 @@ import sys
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
 import os
-cfg = load_cfg(os.environ.get("QBROKER","test.cfg"))
+cfg = load_cfg(os.environ.get("QBROKER", "test.cfg"))
 u = None
 
 def cb(data):
-    data['_broadcast']=True
+    data['_broadcast'] = True
     pprint(data)
     f = asyncio.ensure_future(u.rpc('qbroker.ping', _uuid=data['uuid']))
+
     def d(f):
         try:
             pprint(f.result())
         except Exception:
             print_exc()
+
     f.add_done_callback(d)
 
 async def example():
@@ -48,7 +49,7 @@ async def example():
         d = {}
         if app is not None:
             d['app'] = app
-        async with aclosing(u.poll("qbroker.ping",call_conv=CC_DATA, timeout=2, _data=d)) as r:
+        async with aclosing(u.poll("qbroker.ping", call_conv=CC_DATA, timeout=2, _data=d)) as r:
             for msg in r:
                 cb(msg)
 
@@ -60,5 +61,3 @@ if __name__ == '__main__':
         main()
     except KeyboardInterrupt:
         print("Terminated.", file=sys.stderr)
-
-

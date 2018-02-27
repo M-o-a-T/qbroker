@@ -1,23 +1,22 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, print_function, division, unicode_literals
-##
-## This file is part of QBroker, an easy to use RPC and broadcast
-## client+server using AMQP.
-##
-## QBroker is Copyright © 2016 by Matthias Urlichs <matthias@urlichs.de>,
-## it is licensed under the GPLv3. See the file `README.rst` for details,
-## including optimistic statements by the author.
-##
-## This paragraph is auto-generated and may self-destruct at any time,
-## courtesy of "make update". The original is in ‘utils/_boilerplate.py’.
-## Thus, please do not remove the next line, or insert any blank lines.
-##BP
+#
+# This file is part of QBroker, an easy to use RPC and broadcast
+# client+server using AMQP.
+#
+# QBroker is Copyright © 2016-2018 by Matthias Urlichs <matthias@urlichs.de>,
+# it is licensed under the GPLv3. See the file `README.rst` for details,
+# including optimistic statements by the author.
+#
+# This paragraph is auto-generated and may self-destruct at any time,
+# courtesy of "make update". The original is in ‘utils/_boilerplate.py’.
+# Thus, please do not remove the next line, or insert any blank lines.
+#BP
 
 import trio
 from traceback import print_exc
-from . import CC_MSG,CC_DATA,CC_DICT
+from . import CC_MSG, CC_DATA, CC_DICT
 from .conn import Connection
-from .msg import RequestMsg,PollMsg,AlertMsg
+from .msg import RequestMsg, PollMsg, AlertMsg
 from .rpc import RPCservice
 from .config import DEFAULT_CONFIG
 from .util import uuidstr, combine_dict
@@ -29,12 +28,13 @@ from functools import partial
 import logging
 logger = logging.getLogger(__name__)
 
+
 class Broker:
     """The basic QBroker messenger."""
-    config = None # configuration data, also serves as flag
-                  # for preventing restart at closedown
-    conn = None # AMQP receiver
-    uuid = None # my UUID
+    config = None  # configuration data, also serves as flag
+    # for preventing restart at closedown
+    conn = None  # AMQP receiver
+    uuid = None  # my UUID
     restarting = None
     args = ()
     debug = None
@@ -83,7 +83,7 @@ class Broker:
         self._connected = trio.Event()
         self.nursery.start_soon(self._queue_run)
         self.hidden = hidden
-        self._idle = None # cancel scope of backgound while-disconnected task
+        self._idle = None  # cancel scope of backgound while-disconnected task
         self.idle_proc = idle_proc
 
         self.uuid = uuidstr()
@@ -104,13 +104,19 @@ class Broker:
             self.debug = Debugger(self)
 
         if not self.hidden:
-            self.on_rpc(self._alert_ping, "qbroker.ping",call_conv=CC_DATA, multiple=True)
+            self.on_rpc(self._alert_ping, "qbroker.ping", call_conv=CC_DATA, multiple=True)
             self.on_rpc(self._reply_ping, "qbroker.ping")
-            self.on_rpc(self._alert_ping, "qbroker.app."+self.app, call_conv=CC_DATA, multiple=True)
-            self.on_rpc(self._reply_ping, "qbroker.app."+self.app)
+            self.on_rpc(
+                self._alert_ping, "qbroker.app." + self.app, call_conv=CC_DATA, multiple=True
+            )
+            self.on_rpc(self._reply_ping, "qbroker.app." + self.app)
         if self.debug is not None:
-            self.on_rpc(self._reply_debug, "qbroker.debug.app."+self.app, call_conv=CC_MSG, debug=True)
-            self.on_rpc(self._reply_debug, "qbroker.debug.uuid."+self.uuid, call_conv=CC_MSG, debug=True)
+            self.on_rpc(
+                self._reply_debug, "qbroker.debug.app." + self.app, call_conv=CC_MSG, debug=True
+            )
+            self.on_rpc(
+                self._reply_debug, "qbroker.debug.uuid." + self.uuid, call_conv=CC_MSG, debug=True
+            )
             # uuid: done in conn setup
 
     async def __aenter__(self):
@@ -144,7 +150,7 @@ class Broker:
     def __exit__(self, *tb):
         raise RuntimeError("You need to use 'asny with'")
 
-    async def _run_idle(self,task_status=trio.TASK_STATUS_IGNORED):
+    async def _run_idle(self, task_status=trio.TASK_STATUS_IGNORED):
         """
         Run the "idle proc" under a separate scope
         so that it can be cancelled when the connection comes back.
@@ -156,10 +162,12 @@ class Broker:
         finally:
             self._idle = None
 
-    async def _keep_connected(self,task_status=trio.TASK_STATUS_IGNORED):
+    async def _keep_connected(self, task_status=trio.TASK_STATUS_IGNORED):
         """Task which keeps a connection going"""
+
         class TODOexception(Exception):
             pass
+
         self.restarting = None
         while not self._stop.is_set():
             try:
@@ -178,9 +186,9 @@ class Broker:
                 self._connected.clear()
                 logger.exception("Error. TODO Reconnecting after a while.")
             finally:
-                c,self.conn = self.conn,None
+                c, self.conn = self.conn, None
                 if c is not None:
-                    with trio.open_cancel_scope(shield=True,deadline=trio.current_time()+1):
+                    with trio.open_cancel_scope(shield=True, deadline=trio.current_time() + 1):
                         await c.aclose()
 
             self.restarting = True
@@ -194,8 +202,8 @@ class Broker:
 
     async def _queue_run(self, task_status=trio.TASK_STATUS_IGNORED):
         task_status.started()
-        async for typ,arg in self._queue:
-            if self.conn is None: # do it later
+        async for typ, arg in self._queue:
+            if self.conn is None:  # do it later
                 continue
             if typ == "reg":
                 await self._do_register(arg)
@@ -308,14 +316,14 @@ class Broker:
             return _register(fn, name=name, _direct=True, **kw)
 
         if fn is not None:
-            return partial(_register,name=fn,**kw)
+            return partial(_register, name=fn, **kw)
         elif kw:
-            return partial(_register,**kw)
+            return partial(_register, **kw)
         else:
             return _register
 
     async def unregister(self, ep):
-        if isinstance(ep,str):
+        if isinstance(ep, str):
             ep = self._endpoints[ep]
         try:
             del self._endpoints[ep.tag]
@@ -326,27 +334,27 @@ class Broker:
             if self.conn is not None:
                 await self.conn.unregister(ep)
 
-    def _alert_ping(self,msg):
-        if isinstance(msg,Mapping):
-            if msg.get('app',self.app) != self.app:
+    def _alert_ping(self, msg):
+        if isinstance(msg, Mapping):
+            if msg.get('app', self.app) != self.app:
                 return
-            if msg.get('uuid',self.uuid) != self.uuid:
+            if msg.get('uuid', self.uuid) != self.uuid:
                 return
         return dict(
             app=self.app,
             uuid=self.uuid,
             args=self.args,
-            )
+        )
 
-    def _reply_ping(self,msg):
+    def _reply_ping(self, msg):
         return dict(
             app=self.app,
             args=self.args,
             uuid=self.uuid,
             endpoints=list(self._endpoints.keys()),
-            )
-        
-    async def _reply_debug(self,msg):
+        )
+
+    async def _reply_debug(self, msg):
         return await self.debug.run(msg)
 
     def debug_env(self, **data):
@@ -354,12 +362,12 @@ class Broker:
             return
         if not data:
             return self.debug.env
-        for k,v in data.items():
+        for k, v in data.items():
             if v is not None:
                 self.debug.env[k] = v
             else:
-                self.debug.env.pop(k,None)
-        
+                self.debug.env.pop(k, None)
+
     ## cleanup, less interesting (hopefully)
 
     def __del__(self):
@@ -374,11 +382,10 @@ class Broker:
 
     def _kill_conn(self, deleting=False):
         self.cfg = None
-        c,self.conn = self.conn,None
-        if c: # pragma: no cover
+        c, self.conn = self.conn, None
+        if c:  # pragma: no cover
             try:
                 c._kill()
             except Exception:
                 if not deleting:
                     logger.exception("closing connection")
-

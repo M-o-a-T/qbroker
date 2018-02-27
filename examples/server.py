@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, print_function, division, unicode_literals
-##
-## This file is part of QBroker, an easy to use RPC and broadcast
-## client+server using AMQP.
-##
-## QBroker is Copyright © 2016 by Matthias Urlichs <matthias@urlichs.de>,
-## it is licensed under the GPLv3. See the file `README.rst` for details,
-## including optimistic statements by the author.
-##
-## This paragraph is auto-generated and may self-destruct at any time,
-## courtesy of "make update". The original is in ‘utils/_boilerplate.py’.
-## Thus, please do not remove the next line, or insert any blank lines.
-##BP
+#
+# This file is part of QBroker, an easy to use RPC and broadcast
+# client+server using AMQP.
+#
+# QBroker is Copyright © 2016-2018 by Matthias Urlichs <matthias@urlichs.de>,
+# it is licensed under the GPLv3. See the file `README.rst` for details,
+# including optimistic statements by the author.
+#
+# This paragraph is auto-generated and may self-destruct at any time,
+# courtesy of "make update". The original is in ‘utils/_boilerplate.py’.
+# Thus, please do not remove the next line, or insert any blank lines.
+#BP
 
 """
 This code simulates a concurrent server.
@@ -33,14 +32,14 @@ import sys
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
 import os
-cfg = load_cfg(os.environ.get("QBROKER","test.cfg"))
+cfg = load_cfg(os.environ.get("QBROKER", "test.cfg"))
 
 async def hello(name="Joe", **kw):
     print("working for", name)
     await trio.sleep(5)  # simulate doing some work in parallel
     print("DONE working for", name)
     return "Hello %s!" % name
-    
+
 async def example():
     async with qbroker.open_broker("example.server", cfg=cfg) as u:
         u.register_rpc(hello, "example.hello", call_conv=CC_DICT)
@@ -54,4 +53,3 @@ if __name__ == '__main__':
         main()
     except KeyboardInterrupt:
         print("Terminated.", file=sys.stderr)
-

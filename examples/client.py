@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, print_function, division, unicode_literals
-##
-## This file is part of QBroker, an easy to use RPC and broadcast
-## client+server using AMQP.
-##
-## QBroker is Copyright © 2016 by Matthias Urlichs <matthias@urlichs.de>,
-## it is licensed under the GPLv3. See the file `README.rst` for details,
-## including optimistic statements by the author.
-##
-## This paragraph is auto-generated and may self-destruct at any time,
-## courtesy of "make update". The original is in ‘utils/_boilerplate.py’.
-## Thus, please do not remove the next line, or insert any blank lines.
-##BP
+#
+# This file is part of QBroker, an easy to use RPC and broadcast
+# client+server using AMQP.
+#
+# QBroker is Copyright © 2016-2018 by Matthias Urlichs <matthias@urlichs.de>,
+# it is licensed under the GPLv3. See the file `README.rst` for details,
+# including optimistic statements by the author.
+#
+# This paragraph is auto-generated and may self-destruct at any time,
+# courtesy of "make update". The original is in ‘utils/_boilerplate.py’.
+# Thus, please do not remove the next line, or insert any blank lines.
+#BP
 
 """
 This is a sample client.
@@ -31,16 +30,16 @@ import json
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
 import os
-cfg = load_cfg(os.environ.get("QBROKER","test.cfg"))
+cfg = load_cfg(os.environ.get("QBROKER", "test.cfg"))
 u = None
 
-async def example(type="example.client",content=""):
+async def example(type="example.client", content=""):
     async with qbroker.open_broker(type, cfg=cfg) as u:
         rc = 0
-        await trio.sleep(0.2) # allow monitor to attach
+        await trio.sleep(0.2)  # allow monitor to attach
         i = type.find('::')
         if i > 0:
-            dest = type[i+2:]
+            dest = type[i + 2:]
             type = type[:i]
         else:
             dest = None
@@ -60,8 +59,7 @@ async def example(type="example.client",content=""):
             rc = 2
 
 def main(type="example.client", content=""):
-    trio.run(example,type,content)
+    trio.run(example, type, content)
 
 if __name__ == '__main__':
     main(*sys.argv[1:])
-
