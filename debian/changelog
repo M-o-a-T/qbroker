@@ -1,3 +1,9 @@
+trio-qbroker (0.42.0-3) unstable; urgency=medium
+
+  * setup.py fixed
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Tue, 27 Feb 2018 13:25:08 +0100
+
 trio-qbroker (0.42.0-2) unstable; urgency=medium
 
   * First release after renaming to trio-qbroker.

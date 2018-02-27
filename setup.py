@@ -12,9 +12,6 @@
 # Thus, please do not remove the next line, or insert any blank lines.
 #BP
 
-import qbroker
-qbroker.setup()
-
 from setuptools import setup, find_packages
 import xml.sax.saxutils
 from os.path import join
@@ -23,12 +20,11 @@ import os
 from setuptools.command.test import test as TestCommand
 
 
-def get_version(fname='qbroker/__init__.py'):
+def get_version(fname='qbroker/_version.py'):
     with open(fname) as f:
         for line in f:
-            if line.startswith('__VERSION__'):
+            if line.startswith('__version__'):
                 return eval(line.split('=')[-1])
-
 
 def compile_po(path):
     from msgfmt import Msgfmt
