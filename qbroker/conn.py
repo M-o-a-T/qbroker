@@ -85,6 +85,12 @@ class Connection(object):
     def nursery(self):
         return self.amqp.nursery
 
+    async def _wait_disconnected(self, task_status=trio.TASK_STATUS_IGNORED):
+        task_status.started()
+        await self.amqp.connection_closed.wait()
+        self.is_disconnected.set()
+        self.nursery.cancel_scope.cancel()
+
     @asynccontextmanager
     async def connect(self, broker):
         self.broker = weakref.ref(broker)
@@ -101,6 +107,7 @@ class Connection(object):
                 self.amqp = amqp
                 nursery = self.nursery
                 try:
+                    await nursery.start(self._wait_disconnected)
                     for _ in range(self.rpc_workers):
                         await nursery.start(self._work_rpc)
                     for _ in range(self.alert_workers):
@@ -215,6 +222,9 @@ class Connection(object):
         It builds an error reply and sends it to the client, ensuring that
         the error is discovered instantly, instead of waiting for a timeout.
         """
+        if envelope is None:
+            # TODO: channel is closed …
+            return
         try:
             codec = get_codec(properties.content_type)
             msg = codec.decode(body)
@@ -260,7 +270,9 @@ class Connection(object):
         await self._dispatch("rpc", channel, body, envelope, properties)
 
     async def _dispatch(self, mode, channel, body, envelope, properties):
-
+        if envelope is None:
+            # TODO channel has been closed, what to do?
+            return
         try:
             routing_key = properties.headers['routing-key']
         except (KeyError, AttributeError):

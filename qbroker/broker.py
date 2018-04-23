@@ -177,6 +177,7 @@ class Broker:
                         self._idle = None
                     await self._do_regs()
                     task_status.started()
+                    task_status = trio.TASK_STATUS_IGNORED
                     await conn.is_disconnected.wait()
             except TODOexception:
                 self._connected.clear()
