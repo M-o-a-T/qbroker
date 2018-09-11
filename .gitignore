@@ -10,3 +10,4 @@ __pycache__
 /.pybuild
 /aioamqp-*.egg
 /.coverage
+/.pytest_cache/
