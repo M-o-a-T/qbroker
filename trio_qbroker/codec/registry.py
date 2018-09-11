@@ -3,7 +3,7 @@
 
 from __future__ import print_function, absolute_import
 
-from qbroker.util import TZ, UTC, format_dt, import_string
+from trio_qbroker.util import TZ, UTC, format_dt, import_string
 import base64
 import datetime as dt
 import traceback

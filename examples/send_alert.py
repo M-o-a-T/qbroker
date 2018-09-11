@@ -14,7 +14,7 @@
 #BP
 
 import trio
-import qbroker
+import trio_qbroker as qbroker
 from tests.util import load_cfg
 import logging
 import sys

@@ -12,7 +12,7 @@
 # Thus, please do not remove the next line, or insert any blank lines.
 #BP
 
-from qbroker.util import combine_dict
+from trio_qbroker.util import combine_dict
 from pytest import raises
 
 

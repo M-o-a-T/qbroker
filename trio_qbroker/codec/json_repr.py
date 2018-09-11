@@ -4,7 +4,7 @@
 from __future__ import print_function, absolute_import
 from json.encoder import JSONEncoder
 from json.decoder import JSONDecoder
-from qbroker.util import attrdict
+from trio_qbroker.util import attrdict
 from collections.abc import Mapping
 from .registry import type2cls, name2cls
 

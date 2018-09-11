@@ -14,9 +14,9 @@
 
 import pytest
 import trio
-from qbroker import CC_TASK
+from trio_qbroker import CC_TASK
 from .testsupport import TIMEOUT, unit
-from qbroker.conn import DeadLettered
+from trio_qbroker.conn import DeadLettered
 
 
 async def plain_job(msg):

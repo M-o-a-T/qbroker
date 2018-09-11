@@ -14,7 +14,7 @@
 
 import trio
 import pytest
-from qbroker import open_broker
+from trio_qbroker import open_broker
 from .testsupport import TIMEOUT, cfg, unit
 
 

@@ -13,7 +13,7 @@
 #BP
 
 import os
-import qbroker
+import trio_qbroker as qbroker
 import inspect
 
 TIMEOUT = 0.5

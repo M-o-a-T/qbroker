@@ -20,7 +20,7 @@ import os
 from setuptools.command.test import test as TestCommand
 
 
-def get_version(fname='qbroker/_version.py'):
+def get_version(fname='trio_qbroker/_version.py'):
     with open(fname) as f:
         for line in f:
             if line.startswith('__version__'):

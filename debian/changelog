@@ -1,3 +1,9 @@
+trio-qbroker (0.50.0-1) unstable; urgency=medium
+
+  * Rename completed
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Tue, 11 Sep 2018 16:58:58 +0200
+
 trio-qbroker (0.42.0-6) unstable; urgency=medium
 
   * disable testing, for now

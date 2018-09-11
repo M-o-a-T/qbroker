@@ -14,8 +14,8 @@
 #BP
 
 import trio
-import qbroker
-from qbroker import CC_DATA
+import trio_qbroker as qbroker
+from trio_qbroker import CC_DATA
 from tests.util import load_cfg
 from pprint import pprint
 from traceback import print_exc

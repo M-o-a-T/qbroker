@@ -14,10 +14,10 @@
 
 import pytest
 import trio
-from qbroker import CC_DICT, CC_DATA, CC_MSG, CC_TASK, open_broker
+from trio_qbroker import CC_DICT, CC_DATA, CC_MSG, CC_TASK, open_broker
 from .testsupport import TIMEOUT, cfg, unit
-from qbroker.msg import MsgError
-from qbroker.conn import DeadLettered
+from trio_qbroker.msg import MsgError
+from trio_qbroker.conn import DeadLettered
 from unittest.mock import Mock
 import contextlib
 import socket
@@ -203,7 +203,7 @@ async def test_rpc_named():
 #async def test_rpc_explicit():
 #    async with unit(1) as unit1:
 #        async with unit(2) as unit2:
-#            from qbroker.rpc import RPCservice
+#            from trio_qbroker.rpc import RPCservice
 #            s = RPCservice(something_named,call_conv=CC_DATA)
 #            await unit1.register(s)
 #            # something_named.__module__ depends on what the test was called with

@@ -20,7 +20,7 @@ Usage:
 """
 
 import trio
-import qbroker
+import trio_qbroker as qbroker
 from tests.util import load_cfg
 from traceback import print_exc
 import logging

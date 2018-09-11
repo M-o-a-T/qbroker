@@ -22,8 +22,8 @@ the "config.amqp.limits.rpc.workers" setting.
 """
 
 import trio
-import qbroker
-from qbroker import CC_DICT
+import trio_qbroker as qbroker
+from trio_qbroker import CC_DICT
 from tests.util import load_cfg
 
 import logging

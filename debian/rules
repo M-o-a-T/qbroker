@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 
-export PYBUILD_NAME=qbroker
+export PYBUILD_NAME=trio_qbroker
 
 %:
 	dh $@ --with python3 --buildsystem=pybuild
