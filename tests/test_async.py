@@ -5,12 +5,12 @@ import os
 import pytest
 import sys
 import unittest
-import qbroker.util.async
+import qbroker.util.async_
 
 #MY_DIR = os.path.abspath(os.path.dirname(__file__))
 #sys.path.append(MY_DIR)
 
-class Main(qbroker.util.async.Main):
+class Main(qbroker.util.async_.Main):
     @asyncio.coroutine
     def at_start(self):
         super().at_start()

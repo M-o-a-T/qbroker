@@ -1,3 +1,9 @@
+qbroker (0.31.1-2) unstable; urgency=medium
+
+  * avoid 'async' keyword
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Tue, 27 Nov 2018 09:50:32 +0100
+
 qbroker (0.31.1-1) unstable; urgency=medium
 
   * Drop support for gevent.

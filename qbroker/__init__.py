@@ -25,7 +25,7 @@ def setup(*a,**k):
 
 	import asyncio
 	if not hasattr(asyncio,'ensure_future'):
-		asyncio.ensure_future = asyncio.async
+		asyncio.ensure_future = getattr(asyncio,'async')
 
 	global Unit,make_unit
 	from qbroker.unit import Unit, make_unit
