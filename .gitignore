@@ -2,6 +2,7 @@
 *.swp
 *.pyc
 __pycache__
+/.pytest_cache/
 /test.log
 /*.cfg
 /QBroker.egg-info/
