@@ -385,7 +385,7 @@ def test_rpc_bad_params(unit1, unit2, loop):
 		res = (yield from unit2.rpc("my.call", x="two"))
 	except TypeError as exc:
 		assert type(exc) == TypeError
-		assert "convert" in str(exc) or "must be " in str(exc)
+		assert "convert" in str(exc) or "must be " in str(exc) or "can only concatenate str" in str(exc)
 	else:
 		assert False,"exception not called"
 	
