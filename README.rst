@@ -1,7 +1,7 @@
 QBroker is short for Quick Access Broker.
 
 QBroker is Python library which provides an easy-to-use interface for asynchronous, debuggable RPC via AMQP.
-It uses Python 3.4 asyncio features and provides wrappers for use with native threads or gevent tasklets.
+It uses Python 3.4 asyncio features and provides wrappers for use with native threads.
 
 Example scripts, including an event/RPC monitor, are provided.
 

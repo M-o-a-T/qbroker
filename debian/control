@@ -7,8 +7,6 @@ Build-Depends: debhelper (>= 7),
   python3-pytest,
   python3-pytest-asyncio,
   python3-aioamqp (>> 0.8.0),
-  python3-aiogevent,
-  python3-gevent (>> 1.1),
   python3-tz,
   python3-yaml,
 Standards-Version: 3.9.1
@@ -19,9 +17,6 @@ Architecture: all
 Depends: ${misc:Depends}, ${python3:Depends},
   python3-aioamqp (>> 0.8.0),
   python3-tz,
-Recommends: 
-  python3-aiogevent,
-  python3-gevent (>> 1.1),
 Description: Quick Access Broker.
  QBroker is a minimal wrapper for asynchronous, debuggable RPC via AMQP.
  .

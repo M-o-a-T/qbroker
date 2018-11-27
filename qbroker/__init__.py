@@ -31,4 +31,4 @@ def setup(*a,**k):
 	from qbroker.unit import Unit, make_unit
 
 loop = None # set by setup
-# unit_sync() and/or unit_gevent() will be added by qbroker.util.sync.setup()
+# unit_sync() will be added by qbroker.util.sync.setup()

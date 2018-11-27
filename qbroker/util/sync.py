@@ -14,20 +14,14 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 ##BP
 
 """\
-This module implements accessors for using QBroker in a threaded environment,
-either natively or via gevent.
+This module implements native accessors for using QBroker in a threaded
+environment.
 
-For native threads, call `qbroker.setup(sync=True)` and use `*_sync` methods.
+Call `qbroker.setup(sync=True)` and use `*_sync` methods.
 You can run asyncio code thus:
 >>> from qbroker.util.sync import AioRunner
 >>> result = await_sync(proc,*a,**kw)
 
-For gevent threads, call `qbroker.setup(gevent=True)` and use `*_gevent` methods.
-You can run asyncio code thus:
->>> from qbroker.util.sync import await_from
->>> result = await_gevent(proc,*a,**kw)
-
-Note that, unlike these functions, native asyncio calls the procedure directly:
 >>> res = (yield from proc(*a,**k)) ## Python 3.4
 >>> res = await proc(*a,**k)        ## Python 3.5+
 """
@@ -42,7 +36,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 # overwritten by setup(), if applicable
-aiogevent = None
 threading = None
 asyncio = None
 
@@ -62,9 +55,6 @@ class AioRunner:
 	Exceptions in teardown are logged but otherwise ignored.
 
 	You need to call qbroker.setup(sync=True) before this is useable.
-
-	NOTE: this is not useful for gevent threads!
-	Instead, call qbroker.setup(gevent=True) and use the `aiogevent` module.
 	"""
 
 	def __init__(self):
@@ -196,32 +186,9 @@ class AioRunner:
 		else:
 			return fx.result()
 
-def setup(sync=False,gevent=False):
-	if gevent and not qbroker.loop:
-		## You get spurious errors if the core threading module is imported
-		## before monkeypatching.
-		#	if 'threading' in sys.modules and 'TRAVIS' not in os.environ:
-		#		raise Exception('The ‘threading’ module was loaded before patching for gevent')
-		## However, simply not doing it at all is more prudent:
-		## Qbroker itself no longer needs it.
-		#	import gevent.monkey
-		#	gevent.monkey.patch_all()
-		pass
-
+def setup(sync=False):
 	global asyncio
 	import asyncio
-
-	if gevent and not qbroker.loop:
-		global aiogevent,_gevent
-		import aiogevent
-		import gevent as _gevent
-
-		asyncio.set_event_loop_policy(aiogevent.EventLoopPolicy())
-		qbroker.loop = asyncio.get_event_loop()
-
-		def make_unit_gevent(*args,**kwargs):
-			return aiogevent.yield_future(asyncio.ensure_future(qbroker.make_unit(*args, loop=qbroker.loop, **kwargs), loop=qbroker.loop))
-		qbroker.make_unit_gevent = make_unit_gevent
 
 	global AioRunner
 	if sync and isinstance(AioRunner,type):
@@ -245,9 +212,6 @@ class SyncFuncs(type):
 	The sync version will behave as if it were called via
 	`AioRunner.run_async`, including its _async and _timeout arguments.
 
-	The gevent version will behave as if it were called via
-	`aiogevent.yield_future`, including its _timeout arguments.
-
 	"""
 	def __new__(cls, clsname, bases, dct, **kwargs):
 		new_dct = {}
@@ -264,12 +228,6 @@ class SyncFuncs(type):
 				meth.__name__ = syncname
 				meth.__qualname__ = '{}.{}'.format(clsname, syncname)
 				new_dct[syncname] = meth
-
-				meth = gevent_maker(name)
-				syncname = '{}_gevent'.format(name)
-				meth.__name__ = syncname
-				meth.__qualname__ = '{}.{}'.format(clsname, syncname)
-				new_dct[syncname] = meth
 		dct.update(new_dct)
 
 		return super().__new__(cls, clsname, bases, dct)
@@ -279,18 +237,6 @@ def sync_maker(func):
 		meth = getattr(self, func)
 		return AioRunner.run_async(meth, *args,**kwargs)
 	return sync_func
-
-def gevent_maker(func):
-	def gevent_func(self, *args, _timeout=None, _async=False, **kwargs):
-		meth = getattr(self, func)
-		f = asyncio.ensure_future(meth(*args,**kwargs), loop=qbroker.loop)
-		if _timeout is not None:
-			f = asyncio.ensure_future(asyncio.wait_for(f,_timeout,loop=qbroker.loop), loop=qbroker.loop)
-		if _async:
-			return gevent.spawn(aiogevent.yield_future,f)
-		else:
-			return aiogevent.yield_future(f)
-	return gevent_func
 
 def async_sync(proc):
 	"""Decorator to wrap a native proc for calling by async code"""
@@ -311,23 +257,8 @@ def async_sync(proc):
 		return (yield from f)
 	return called
 
-def async_gevent(proc):
-	"""Decorator to wrap a gevent proc for calling by async code"""
-	@functools.wraps(proc)
-	@asyncio.coroutine
-	def called(*a,**k):
-		return aiogevent.wrap_greenlet(_gevent.spawn(proc,*a,**k), loop=qbroker.loop)
-	return called
-
 def await_sync(proc,*a,**k):
 	"""Helper function to wait for an async result from a native thread"""
 	return AioRunner.run_async(proc,*a,**k)
 
-def await_gevent(proc,*a, _loop=None, **k):
-	"""Helper function to wait for an async result from a gevent thread"""
-	if _loop is None:
-		_loop = qbroker.loop
-	p = proc(*a,**k)
-	f = asyncio.ensure_future(p, loop=_loop)
-	return aiogevent.yield_future(f, loop=_loop)
 
